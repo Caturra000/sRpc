@@ -1,0 +1,13 @@
+#ifndef __MUTTY_EXCEPTION_H__
+#define __MUTTY_EXCEPTION_H__
+#include <bits/stdc++.h>
+class MuttyException: public std::exception {
+private:
+    const char *_info;
+public:
+    explicit MuttyException(const char *info)
+        : _info(info) { }
+    const char* what() const noexcept override
+        { return _info; }
+};
+#endif
