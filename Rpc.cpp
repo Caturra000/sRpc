@@ -8,6 +8,7 @@ public:
     
     CallProxy(F func): _func(std::move(func)) {}
     Json operator()(const char* stream, size_t len) {
+        const char *backup = stream;
         auto result = dispatch(_func, stream, len); // FIXME 返回引用会decay
         return result; // 隐式转换
     }
@@ -18,7 +19,7 @@ private:
     template <typename Ret, typename ...Args, 
     typename WrappedRet = std::conditional_t<
         std::is_same<Ret, void>::value, nullptr_t, Ret>>
-    WrappedRet dispatch(Ret (*func)(Args...), const char *stream, size_t len) {
+    WrappedRet dispatch(Ret (*func)(Args...), const char *&stream, size_t len) {
         using ArgsTuple = std::tuple<std::decay_t<Args>...>;
         constexpr size_t N = sizeof...(Args);
         // 从stream构造tuple
@@ -32,7 +33,7 @@ private:
     template <typename Ret, typename ...Args, 
     typename WrappedRet = std::conditional_t<
         std::is_same<Ret, void>::value, nullptr_t, Ret>>
-    WrappedRet dispatch(std::function<Ret(Args...)> &func, const char *stream, size_t len) {
+    WrappedRet dispatch(std::function<Ret(Args...)> &func, const char *&stream, size_t len) {
         using ArgsTuple = std::tuple<std::decay_t<Args>...>;
         constexpr size_t N = sizeof...(Args);
         // 从stream构造tuple
@@ -60,7 +61,7 @@ private:
 
     // 从stream中处理整个tuple
     template <typename Tuple, size_t ...I>
-    Tuple make(const char *from, std::index_sequence<I...>) {
+    Tuple make(const char *&from, std::index_sequence<I...>) {
         Tuple tuple;
         std::initializer_list<int> { (get<Tuple, I>(from, tuple), 0)... };
         return tuple;
@@ -151,10 +152,8 @@ int main() {
     rpc.bind("add", add);
     std::function<int(int, int)> func = add;
     rpc.bind("func", func);
-    for(int i = 0; i < 10000; ++i) {
-        auto r = rpc.call<int>("add", 1, 2);
-        std::cout << r;
-    }
+    auto r = rpc.call<int>("add", 1, 2);
+    std::cout << r;
     std::cout << std::endl;
     
 
