@@ -137,7 +137,6 @@ class RpcServer {
 class RpcClient {
     Looper looper;
     Client client; // single thread
-    std::queue<std::shared_ptr<std::promise<Json>>> ps; // TODO 改为Json
     int idGen;
     std::map<int, Json> mj; // 需要lock? 不需要吧
     // void test() {
@@ -148,33 +147,70 @@ class RpcClient {
     // 需求1： 不能阻塞send过程，也就是send和process不能合在一块，不然影响server对单一client的效率
     // 需求2： 希望过程是透明的，返回std::future<T>而不是Json
 
-    std::future<int> call(int arg) {
+    // template <typename T>
+    std::future<int/*T*/> call(int arg) {
         auto promise = std::make_shared<std::promise<Json>>();
         auto retPromise = std::make_shared<std::promise<int>>();
         auto scheduler = looper.getScheduler();
-        scheduler->runAt(now()).with([this, /*MoveWrapper, */ promise, retPromise] {
+        int token; // idGen
+        scheduler->runAt(now()).with([this, /*MoveWrapper, */ promise, retPromise, token] {
             // client.send(); // 只是写到app buffer中，足够快
             // promise咋办？
-            ps.push(std::move(promise));
+            // ps.push(std::move(promise));
             // promise怎么泛型擦除，不擦了，用JSON
 
             // 再多加一个异步处理过程
 
             // then 严格顺序
-            looper.getScheduler()->runAt(now()).with([] { // <T>
-                //if(!match(id)) retry();
+            looper.getScheduler()->runAt(now()).with([this, token] { // <T>
+                if(!mj.count(token)) ; // retry
             });
         });
         
         return retPromise->get_future();
     }
 
+    template <int Cur, typename Arg, typename ...Args>
+    void createImpl(Json &json, Arg &&arg, Args &&...args) {
+        if(sizeof...(Args) == 0) return;
+        json["arg" + std::to_string(Cur) ] = arg;
+        createImpl<Cur+1>(json, td::forward<Args>(args)...);
+    }
+
+    template <typename ...Args>
+    Json create(Args &&...args) {
+        Json json = 
+        {
+            {"args", nullptr}
+        };
+        Json &argsJson = json["args"];
+        createImpl<0>(argsJson, std::forward<Args>(args)...);
+        return json;
+    }
+
+    template <typename T, typename ...Args> // PODs
+    std::future<T> callT(Args &&...args) {
+        Json json = create(std::forward<Args>(args)...);
+        auto promise = std::make_shared<std::promise<T>>();
+        auto scheduler = looper.getScheduler();
+        scheduler->runAt(now()).with([this, /*MoveWrapper, */ promise] {
+            int token = ++idGen; // idGen
+            json["token"] = token;
+            // client.send(/*json.dump()*/);
+            looper.getScheduler()->runAt(now()).with([this, token, promise] { // <T>
+                if(!mj.count(token)) ; // retry
+                // promise->set_value(/*json*/); // 只有一个值的json
+            });
+        });
+        
+        return promise->get_future();
+    }
+
     RpcClient(): client(&looper, InetAddress("127.0.0.1", 23333)) {
         client.onMessage([] { // 类型丢失，惨
             // if(codec.valid()) {
-                // promises.front().set_value(....); or set_exception
+                // token添加对应json
 
-                // js.push();//....
             // }
 
             // 既然类型必然丢失，那只能传JSON，不能在这set_value<T>
