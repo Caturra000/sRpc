@@ -99,6 +99,9 @@ private:
     std::decay_t<F> _func;
 };
 
+class Codec {
+
+};
 
 class RpcService {
 public:
@@ -127,7 +130,57 @@ void minus(int a, int b) {
 }
 
 
+class RpcServer {
 
+};
+
+class RpcClient {
+    Looper looper;
+    Client client; // single thread
+    std::queue<std::shared_ptr<std::promise<Json>>> ps; // TODO 改为Json
+    int idGen;
+    std::map<int, Json> mj; // 需要lock? 不需要吧
+    // void test() {
+        // results.back().
+    // }
+
+
+    // 需求1： 不能阻塞send过程，也就是send和process不能合在一块，不然影响server对单一client的效率
+    // 需求2： 希望过程是透明的，返回std::future<T>而不是Json
+
+    std::future<int> call(int arg) {
+        auto promise = std::make_shared<std::promise<Json>>();
+        auto retPromise = std::make_shared<std::promise<int>>();
+        auto scheduler = looper.getScheduler();
+        scheduler->runAt(now()).with([this, /*MoveWrapper, */ promise, retPromise] {
+            // client.send(); // 只是写到app buffer中，足够快
+            // promise咋办？
+            ps.push(std::move(promise));
+            // promise怎么泛型擦除，不擦了，用JSON
+
+            // 再多加一个异步处理过程
+
+            // then 严格顺序
+            looper.getScheduler()->runAt(now()).with([] { // <T>
+                //if(!match(id)) retry();
+            });
+        });
+        
+        return retPromise->get_future();
+    }
+
+    RpcClient(): client(&looper, InetAddress("127.0.0.1", 23333)) {
+        client.onMessage([] { // 类型丢失，惨
+            // if(codec.valid()) {
+                // promises.front().set_value(....); or set_exception
+
+                // js.push();//....
+            // }
+
+            // 既然类型必然丢失，那只能传JSON，不能在这set_value<T>
+        });
+    }
+};
 
 
 int main() {
@@ -156,7 +209,13 @@ int main() {
     std::cout << r;
     std::cout << std::endl;
     
+    Looper looper;
+    Server server(&looper, InetAddress("127.0.0.1", 23333));
 
+    Codec codec;
+    server.onMessage([&codec](TcpContext *ctx) {
+        // if(codec.valid())
+    });
     
     
 }
