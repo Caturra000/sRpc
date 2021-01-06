@@ -135,91 +135,69 @@ class RpcServer {
 };
 
 class RpcClient {
-    Looper looper;
-    Client client; // single thread
-    int idGen;
-    std::map<int, Json> mj; // 需要lock? 不需要吧
-    // void test() {
-        // results.back().
-    // }
-
-
-    // 需求1： 不能阻塞send过程，也就是send和process不能合在一块，不然影响server对单一client的效率
-    // 需求2： 希望过程是透明的，返回std::future<T>而不是Json
-
-    // template <typename T>
-    std::future<int/*T*/> call(int arg) {
-        auto promise = std::make_shared<std::promise<Json>>();
-        auto retPromise = std::make_shared<std::promise<int>>();
-        auto scheduler = looper.getScheduler();
-        int token; // idGen
-        scheduler->runAt(now()).with([this, /*MoveWrapper, */ promise, retPromise, token] {
-            // client.send(); // 只是写到app buffer中，足够快
-            // promise咋办？
-            // ps.push(std::move(promise));
-            // promise怎么泛型擦除，不擦了，用JSON
-
-            // 再多加一个异步处理过程
-
-            // then 严格顺序
-            looper.getScheduler()->runAt(now()).with([this, token] { // <T>
-                if(!mj.count(token)) ; // retry
-            });
-        });
-        
-        return retPromise->get_future();
-    }
-
-    template <int Cur, typename Arg, typename ...Args>
-    void createImpl(Json &json, Arg &&arg, Args &&...args) {
-        if(sizeof...(Args) == 0) return;
-        json["arg" + std::to_string(Cur) ] = arg;
-        createImpl<Cur+1>(json, td::forward<Args>(args)...);
-    }
-
-    template <typename ...Args>
-    Json create(Args &&...args) {
-        Json json = 
-        {
-            {"args", nullptr}
-        };
-        Json &argsJson = json["args"];
-        createImpl<0>(argsJson, std::forward<Args>(args)...);
-        return json;
-    }
-
+public:
     template <typename T, typename ...Args> // PODs
-    std::future<T> callT(Args &&...args) {
-        Json json = create(std::forward<Args>(args)...);
+    std::future<T> call(Args &&...args) {
+        auto json = std::make_shared<Json>(create(std::forward<Args>(args)...));
         auto promise = std::make_shared<std::promise<T>>();
-        auto scheduler = looper.getScheduler();
-        scheduler->runAt(now()).with([this, /*MoveWrapper, */ promise] {
-            int token = ++idGen; // idGen
-            json["token"] = token;
-            // client.send(/*json.dump()*/);
-            looper.getScheduler()->runAt(now()).with([this, token, promise] { // <T>
-                if(!mj.count(token)) ; // retry
-                // promise->set_value(/*json*/); // 只有一个值的json
+        looper.getScheduler()->runAt(now()).with([this, json, promise] {
+            int token = ++idGen;
+            (*json)["token"] = token;
+            std::string dump = json->dump();
+            uint32_t beLength = htonl(dump.length());
+            // client.send(beLength);
+            // client.send(/*dump*/);
+            looper.getScheduler()->runAt(now()).with([this, token, promise] {
+                auto iter = records.find(token);
+                if(iter == records.end()) ; // retry
+                promise->set_value(std::move(iter->second.as<T>())); // 只有一个值的json
+                records.erase(iter);
             });
         });
         
         return promise->get_future();
     }
 
-    RpcClient(): client(&looper, InetAddress("127.0.0.1", 23333)) {
-        client.onMessage([] { // 类型丢失，惨
+    RpcClient(const InetAddress &serverAddress): client(&looper, serverAddress) {
+        client.onMessage([] {
             // if(codec.valid()) {
                 // token添加对应json
 
             // }
 
-            // 既然类型必然丢失，那只能传JSON，不能在这set_value<T>
         });
     }
+
+private:
+    template <typename ...Args>
+    void createImpl(Json &json, Args &&...args) {
+    }
+
+    template <typename Arg, typename ...Args>
+    void createImpl(Json &json, Arg &&arg, Args &&...args) {
+        json.append(std::forward<Arg>(arg));
+        createImpl(json, std::forward<Args>(args)...);
+    }
+
+    template <typename ...Args>
+    Json create(Args &&...args) {
+        Json json = 
+        {
+            {"args", Json::array()}
+        };
+        Json &argsJson = json["args"];
+        createImpl(argsJson, std::forward<Args>(args)...);
+        return json;
+    }
+
+    Looper looper;
+    Client client; // single thread
+    int idGen;
+    std::map<int, Json> records;
 };
 
 
-int main() {
+int main() try {
     // std::function<int(int, int)> func = add;
 
     // CallProxy<decltype(add)> cf = add;
@@ -236,6 +214,15 @@ int main() {
     // auto memberFunc = &Test::add;
     // auto lambdaFunc = [&](int,int)->int { return 1; };
 
+    auto lam = [](int n) {
+        std::function<int(int)> lam2;
+        lam2 = [&] (int n) {
+            return n == 1 ? 1 : n + lam2(n-1);
+        };
+        return lam2(n);
+        
+    };
+    std::cout << lam(3) << std::endl;
 
     RpcService rpc;
     rpc.bind("add", add);
@@ -245,13 +232,11 @@ int main() {
     std::cout << r;
     std::cout << std::endl;
     
-    Looper looper;
-    Server server(&looper, InetAddress("127.0.0.1", 23333));
-
-    Codec codec;
-    server.onMessage([&codec](TcpContext *ctx) {
-        // if(codec.valid())
-    });
+    RpcClient client(InetAddress("127.0.0.1", 23333));
+    auto future = client.call<int>("add", 1, 2);
+    auto result = future.get();
     
     
+} catch (ErrnoException e) {
+    std::cerr << e.errorCode() << " " << e.errorMessage() << std::endl;
 }

@@ -10,6 +10,8 @@
 class Json {
 public:
 
+    Json() = default;
+
     template <typename ...Args>
     Json(Args &&...args): _value(std::forward<Args>(args)...) { }
 
@@ -19,16 +21,43 @@ public:
     Json(bool b): _value(Boolean(b)) {}
     Json(nullptr_t): _value(NullImpl(nullptr)) {}
 
+    Json(const Json &rhs): _value(rhs._value) {}
+    Json(Json &&rhs): _value(std::move(rhs._value)) {}
 
     Json(const std::initializer_list<ObjectImpl::value_type> &list)
         : _value(ObjectImpl(list)) { }
 
-    template <typename T>
-    Json& operator=(const T& obj) {
-        _value = obj;
+    Json(std::initializer_list<ObjectImpl::value_type> &&list)
+        : _value(ObjectImpl(std::move(list))) { }
+
+
+    // FIXME: use swap on operator=
+    void swap(Json &rhs) {
+        std::swap(*this, rhs);
+    }
+
+    template <typename T,
+    typename = std::enable_if_t<!std::is_same<std::decay_t<T>, Json>::value>>
+    Json& operator=(T&& obj) {
+        this->~Json();
+        _value = std::forward<T>(obj);
         return *this;
     }
 
+    Json& operator=(const Json &rhs) {
+        if(this == &rhs) return *this;
+        this->~Json();
+        _value = rhs._value;
+        return *this;
+    }
+
+    Json& operator=(Json &&rhs) {
+        if(this == &rhs) return *this;
+        this->~Json();
+        _value = std::move(rhs._value);
+        return *this;
+    }
+    
     template <size_t N>
     Json& operator=(const char (&str)[N]) {
         _value = StringImpl(str);
@@ -90,9 +119,7 @@ public:
     std::string dump() {
         std::stringstream ss;
         ss << (*this);
-        std::string serializer;
-        std::getline(ss, serializer, '\0');
-        return serializer;
+        return ss.str();
     }
 
 private:

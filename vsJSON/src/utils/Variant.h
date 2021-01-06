@@ -36,6 +36,17 @@ struct CopyConstructVisitor {
 };
 
 template <typename ...Types>
+struct MoveConstructVisitor {
+    using ReturnType = void;
+    Variant<Types...> &lhs;
+    MoveConstructVisitor(Variant<Types...> &lhs): lhs(lhs) { }
+    template <typename T>
+    ReturnType operator()(T &obj) {
+        lhs.init(std::move(obj));
+    }
+};
+
+template <typename ...Types>
 struct DeleteVisitor {
     using ReturnType = void;
     Variant<Types...> &self;
@@ -80,11 +91,12 @@ public:
         memset(_handle, 0, sizeof _handle);
     }
 
-    template <typename T>
-    Variant(const T &obj) { 
-        static_assert(Position<T, Types...>::pos != -1,
+    template <typename T,
+    typename = std::enable_if_t<!std::is_same<std::decay_t<T>, Variant>::value>>
+    Variant(T &&obj) { 
+        static_assert(Position<std::decay_t<T>, Types...>::pos != -1,
             "type not found");
-        init(obj);
+        init(std::forward<T>(obj));
     }
 
     Variant(const Variant &rhs) {
@@ -92,21 +104,40 @@ public:
         const_cast<Variant&>(rhs).visit(ccv);
     }
 
-    template <typename T>
-    Variant& operator=(const T &rhs) {
-        this->~Variant();
-        init(rhs);
-        return *this;
+    Variant(Variant &&rhs) {
+        MoveConstructVisitor<Types...> mcv(*this);
+        rhs.visit(mcv);
+        // rhs._what = -1;
+        // memset(rhs._handle, 0, sizeof(rhs._handle));
     }
 
+    // DO NOT IMPLEMENT operator= BY SWAP(swap for placement new buffer is wrong)
+    // reverse case : implements swap by operator=&&
     void swap(Variant &rhs) {
-        std::swap(_what, rhs._what);
-        std::swap(_handle, rhs._handle);
+       std::swap(*this, rhs);
+    }
+
+    template <typename T,
+    typename = std::enable_if_t<!std::is_same<std::decay_t<T>, Variant>::value>>
+    Variant& operator=(T &&rhs) {
+        this->~Variant();
+        init(std::forward<T>(rhs));
+        return *this;
     }
 
     Variant& operator=(const Variant &rhs){
         if(this == &rhs) return *this;
-        Variant(rhs).swap(*this);
+        this->~Variant();
+        CopyConstructVisitor<Types...> ccv(*this);
+        const_cast<Variant&>(rhs).visit(ccv);
+        return *this;
+    }
+
+    Variant& operator=(Variant &&rhs) {
+        if(this == &rhs) return *this;
+        this->~Variant();
+        MoveConstructVisitor<Types...> ccv(*this);
+        rhs.visit(ccv);
         return *this;
     }
 
@@ -152,9 +183,10 @@ public:
     const char* handle() { return _handle; }
 
     template<typename T>
-    void init(const T &obj) { // TODO2 &&
-        _what = Position<T, Types...>::pos;
-        new(_handle) T(obj);
+    void init(T &&obj) {
+        using DecayT = std::decay_t<T>;
+        _what = Position<DecayT, Types...>::pos;
+        new(_handle) DecayT(std::forward<T>(obj));
     }
 };
 
