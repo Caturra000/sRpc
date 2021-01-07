@@ -99,10 +99,6 @@ private:
     std::decay_t<F> _func;
 };
 
-class Codec {
-
-};
-
 class RpcService {
 public:
     template <typename F>
@@ -130,41 +126,68 @@ void minus(int a, int b) {
 }
 
 
+class Codec {
+public:
+    bool verify(Buffer &buffer) {
+        if(buffer.unread() < sizeof(uint32_t)) return false;
+        uint32_t beLength = *reinterpret_cast<uint32_t*>(buffer.readBuffer());
+        uint32_t length = ntohl(beLength);
+        return buffer.unread() >= sizeof(uint32_t) + length;
+    }
+
+    Json decode(Buffer &buffer) {
+        uint32_t beLength = *reinterpret_cast<uint32_t*>(buffer.readBuffer());
+        uint32_t length = ntohl(beLength);
+        buffer.read(sizeof(uint32_t));
+        Json json = parse(std::string(buffer.readBuffer(), length)); // TODO remove construct
+        buffer.read(length);
+        return json;
+    }
+};
+
 class RpcServer {
 
 };
 
 class RpcClient {
 public:
+    template <typename T>
+    void trySetValue(int token, std::shared_ptr<std::promise<T>> promise) {
+        auto iter = records.find(token);
+        if(iter != records.end()) {
+            promise->set_value(std::move(iter->second).to<T>());
+            records.erase(iter);
+        } else {
+            trySetValue(token, std::move(promise)); // retry
+        }
+    }
+
     template <typename T, typename ...Args> // PODs
     std::future<T> call(Args &&...args) {
-        auto json = std::make_shared<Json>(create(std::forward<Args>(args)...));
+        auto request = std::make_shared<Json>(create(std::forward<Args>(args)...));
         auto promise = std::make_shared<std::promise<T>>();
-        looper.getScheduler()->runAt(now()).with([this, json, promise] {
+        looper.getScheduler()->runAt(now()).with([this, request, promise] {
             int token = ++idGen;
-            (*json)["token"] = token;
-            std::string dump = json->dump();
+            (*request)["token"] = token;
+            std::string dump = request->dump();
             uint32_t beLength = htonl(dump.length());
             // client.send(beLength);
             // client.send(/*dump*/);
-            looper.getScheduler()->runAt(now()).with([this, token, promise] {
-                auto iter = records.find(token);
-                if(iter == records.end()) ; // retry
-                promise->set_value(std::move(iter->second.as<T>())); // 只有一个值的json
-                records.erase(iter);
-            });
+            looper.getScheduler()->runAt(now())
+                .with([=] {trySetValue(token, promise);});
         });
-        
         return promise->get_future();
     }
 
+    
+
     RpcClient(const InetAddress &serverAddress): client(&looper, serverAddress) {
-        client.onMessage([] {
-            // if(codec.valid()) {
-                // token添加对应json
-
-            // }
-
+        client.onMessage([this](TcpContext *ctx) {
+            if(codec.verify(ctx->inputBuffer)) {
+                Json response = codec.decode(ctx->inputBuffer);
+                int token = response["token"].as<int>();
+                records[token] = response["ret"];
+            }
         });
     }
 
@@ -194,6 +217,7 @@ private:
     Client client; // single thread
     int idGen;
     std::map<int, Json> records;
+    Codec codec;
 };
 
 
@@ -235,7 +259,8 @@ int main() try {
     RpcClient client(InetAddress("127.0.0.1", 23333));
     auto future = client.call<int>("add", 1, 2);
     auto result = future.get();
-    
+    //auto pr = std::make_shared<std::promise<int>>();
+    // client.trySetValue(1, pr);
     
 } catch (ErrnoException e) {
     std::cerr << e.errorCode() << " " << e.errorMessage() << std::endl;
