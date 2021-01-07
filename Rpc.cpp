@@ -179,14 +179,12 @@ public:
         return promise->get_future();
     }
 
-    
-
     RpcClient(const InetAddress &serverAddress): client(&looper, serverAddress) {
         client.onMessage([this](TcpContext *ctx) {
             if(codec.verify(ctx->inputBuffer)) {
                 Json response = codec.decode(ctx->inputBuffer);
                 int token = response["token"].as<int>();
-                records[token] = response["ret"];
+                records[token] = std::move(response["ret"]);
             }
         });
     }
