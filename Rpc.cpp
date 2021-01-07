@@ -139,7 +139,17 @@ public:
         uint32_t beLength = *reinterpret_cast<uint32_t*>(buffer.readBuffer());
         uint32_t length = ntohl(beLength);
         buffer.read(sizeof(uint32_t));
-        Json json = parse(std::string(buffer.readBuffer(), length)); // TODO remove construct
+        // char ch;
+        // bool overload = buffer.readBuffer() + length != buffer.end();
+        // if(overload) {
+        //     char &backup = buffer.readBuffer()[length];
+        //     ch = backup;
+        //     backup = '\0';
+        // }
+        Json json = parse(/*std::string(*/buffer.readBuffer()/*, length)*/);
+        // if(overload) {
+        //     buffer.readBuffer()[length] = ch;
+        // }
         buffer.read(length);
         return json;
     }
