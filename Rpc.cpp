@@ -158,7 +158,8 @@ public:
             promise->set_value(std::move(iter->second).to<T>());
             records.erase(iter);
         } else {
-            trySetValue(token, std::move(promise)); // retry
+            looper.getScheduler()->runAt(now())
+                .with([=] {trySetValue(token, promise);}); // retry
         }
     }
 
