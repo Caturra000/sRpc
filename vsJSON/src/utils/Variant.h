@@ -74,8 +74,38 @@ struct OsVisitor {
     std::enable_if_t<!HasOperatorLeftShift<T>::value, 
     ReturnType> operator()(T &obj) { 
         throw std::runtime_error("[type]" + std::string(typeid(obj).name()) 
-            + " do not support IO");
+            + " does not support IO");
         return _os;
+    }
+};
+
+template <typename U>
+struct ConvertVisitor {
+    using ReturnType = U;
+    template <typename T>
+    std::enable_if_t<std::is_convertible<T, U>::value,
+    ReturnType> operator()(T &obj) { return obj; }
+    template <typename T>
+    std::enable_if_t<!std::is_convertible<T, U>::value,
+    ReturnType> operator()(T &obj) {
+        throw std::runtime_error("[type]" + std::string(typeid(obj).name())
+            + " does not support convert to [type]" + std::string(typeid(U).name()));
+        return U{};
+    }
+};
+
+template <typename U>
+struct MovedConvertVisitor {
+    using ReturnType = U;
+    template <typename T>
+    std::enable_if_t<std::is_convertible<T, U>::value,
+    ReturnType> operator()(T &obj) { return std::move(obj); }
+    template <typename T>
+    std::enable_if_t<!std::is_convertible<T, U>::value,
+    ReturnType> operator()(T &obj) {
+        throw std::runtime_error("[type]" + std::string(typeid(obj).name())
+            + " does not support moved convert to [type]" + std::string(typeid(U).name()));
+        return U{};
     }
 };
 
@@ -136,8 +166,8 @@ public:
     Variant& operator=(Variant &&rhs) {
         if(this == &rhs) return *this;
         this->~Variant();
-        MoveConstructVisitor<Types...> ccv(*this);
-        rhs.visit(ccv);
+        MoveConstructVisitor<Types...> mcv(*this);
+        rhs.visit(mcv);
         return *this;
     }
 
@@ -160,12 +190,29 @@ public:
 
     template <typename T>
     const T& get() const {
-        return get<T>();
+        return const_cast<Variant*>(this)->get<T>();
     }
 
     template <typename T>
     bool is() const {
         return Position<T, Types...>::pos == _what;
+    }
+
+    template <typename T>
+    T to() & {
+        ConvertVisitor<T> cv;
+        return visit(cv);
+    }
+
+    template <typename T>
+    T to() const & {
+        return const_cast<Variant*>(this)->to<T>();
+    }
+
+    template <typename T>
+    T to() && {
+        MovedConvertVisitor<T> cv;
+        return visit(cv);
     }
 
     template <typename Visitor>
