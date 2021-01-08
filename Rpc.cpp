@@ -63,10 +63,10 @@ private:
     // TODO  lambda
 
     // 从stream中处理整个tuple
-    template <typename Tuple, size_t ...I>
-    Tuple make(const char *&from, std::index_sequence<I...>) {
+    template <typename Tuple, size_t ...Is>
+    Tuple make(const char *&from, std::index_sequence<Is...>) {
         Tuple tuple;
-        std::initializer_list<int> { (get<Tuple, I>(from, tuple), 0)... };
+        std::initializer_list<int> { (get<Tuple, Is>(from, tuple), 0)... };
         return tuple;
     }
 
@@ -94,9 +94,9 @@ private:
         return nullptr;
     }
 
-    template <typename Ret, typename Tuple, size_t ...I>
-    Ret invokeImpl(Tuple &&tuple, std::index_sequence<I...>) {
-        return _func(std::get<I>(std::forward<Tuple>(tuple))...);
+    template <typename Ret, typename Tuple, size_t ...Is>
+    Ret invokeImpl(Tuple &&tuple, std::index_sequence<Is...>) {
+        return _func(std::get<Is>(std::forward<Tuple>(tuple))...);
     }
 
     std::decay_t<F> _func;
