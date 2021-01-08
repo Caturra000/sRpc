@@ -2,6 +2,7 @@
 #define __TCP_POLICY_H__
 #include <bits/stdc++.h>
 #include "core/TcpHandler.h"
+namespace mutty {
 
 
 #define TCP_POLICY_CALLBACK_DEFINE(callback, policy) \
@@ -41,5 +42,7 @@ struct TcpPolicyImpl: public TcpPolicy {
     void onClose(TcpHandler *connection) override
         { connection->onClose(runtimeInfo);} 
 };
+
+} // mutty
 
 #endif

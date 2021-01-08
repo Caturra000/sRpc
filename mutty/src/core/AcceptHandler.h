@@ -6,6 +6,7 @@
 #include "base/handler/Handler.h"
 #include "net/Socket.h"
 #include "AcceptContext.h"
+namespace mutty {
 
 class AcceptHandler: public Handler {
 public:
@@ -54,4 +55,6 @@ protected:
 
     Callable _newConnectionCallback;
 };
+
+} // mutty
 #endif

@@ -1,16 +1,16 @@
 #ifndef __SOCKET_H__
 #define __SOCKET_H__
-
-
 #include <bits/stdc++.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include "utils/Noncopyable.h"
 #include "InetAddress.h"
 #include "netinet/tcp.h"
 #include "throws/Exceptions.h"
+namespace mutty {
 
 
 // 针对socket fd的浅层封装，要求只有fd一个成员
@@ -36,6 +36,7 @@ public:
         return fd;
     }
     
+    // TODO remove
     struct Option {
         const static int NO_DELAY   = 1 << 0;
         const static int REUSE_ADDR = 1 << 1;
@@ -169,5 +170,6 @@ inline void Socket::setNonBlock() {
     ::fcntl(_socketFd, F_SETFL, flags | SOCK_NONBLOCK);
 }
 
+} // mutty
 
 #endif

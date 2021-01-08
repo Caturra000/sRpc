@@ -2,6 +2,8 @@
 #define __SOCKET_ERRNO_EXCEPTION_H__
 #include <cstring>
 #include "MuttyException.h"
+namespace mutty {
+
 class ErrnoException: public MuttyException {
 private:
     int _err {0}; // 暂存errno
@@ -14,4 +16,6 @@ public:
     int errorCode() { return _err; }
     const char* errorMessage() { return strerror(_err); }
 };
+
+} // mutty
 #endif

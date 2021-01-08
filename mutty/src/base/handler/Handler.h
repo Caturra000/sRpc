@@ -1,10 +1,10 @@
 #ifndef __HANDLER_H__
 #define __HANDLER_H__
 #include <bits/stdc++.h>
-
 #include "utils/Callable.h"
 #include "utils/TypeTraits.h"
 #include "Message.h"
+namespace mutty {
 
 #define HANDLER_CALLBACK_DEFINE(functionName, callbackMember, ContextType, contextMember) \
     /* non-context */ \
@@ -32,4 +32,5 @@ public:
     virtual ~Handler() { }
 };
 
+} // mutty
 #endif

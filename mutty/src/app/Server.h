@@ -13,6 +13,7 @@
 #include "core/ConnectionPool.h"
 #include "core/TcpHandler.h"
 #include "core/TcpPolicy.h"
+namespace mutty {
 
 class Server {
 public:
@@ -75,4 +76,6 @@ inline void Server::tcpCallbackInit(TcpHandler *connection) {
     if(_writeCompletePolicy) _writeCompletePolicy->onWriteComplete(connection);
     if(_closePolicy) _closePolicy->onClose(connection);
 }
+
+} // mutty
 #endif

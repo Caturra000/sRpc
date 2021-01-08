@@ -2,6 +2,8 @@
 #define __UTILS_THREAD_POOL_H__
 #include <bits/stdc++.h>
 // #include "utils/Callable.h" // 独立使用
+namespace mutty {
+
 // FIXED
 class ThreadPool {
 public:
@@ -65,4 +67,5 @@ private:
 
 };
 
+} // mutty
 #endif

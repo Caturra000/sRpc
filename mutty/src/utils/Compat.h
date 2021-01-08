@@ -1,6 +1,7 @@
 #ifndef __UTILS_COMPAT_H__
 #define __UTILS_COMPAT_H__
 #include <memory>
+namespace mutty {
 
 // 用于兼容部分缺失的特性
 namespace cpp11 {
@@ -11,4 +12,6 @@ namespace cpp11 {
         return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
     }
 }
+
+} // mutty
 #endif

@@ -1,6 +1,7 @@
 #ifndef __CONTEXT_H__
 #define __CONTEXT_H__
 #include <bits/stdc++.h>
+namespace mutty {
 
 // 命名规范： MSG_<Message>
 #define CONTEXT_MSG_DEFINE(messageType) \
@@ -45,6 +46,6 @@ public:
 
 // using ContextImpl = Context;
 
-
+} // mutty
 
 #endif

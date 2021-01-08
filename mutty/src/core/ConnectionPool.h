@@ -4,8 +4,9 @@
 #include "utils/Compat.h"
 #include "TcpHandler.h"
 #include "LooperPool.h"
-// 用于为Server提供Connection容器
+namespace mutty {
 
+// 用于为Server提供Connection容器
 template <size_t N> // N为Looper池大小
 class ConnectionPoolBase {
 public:
@@ -93,4 +94,6 @@ private:
 
 using ConnectionPool = ConnectionPoolBase<1<<4>;
 using SingleConnectionPool = ConnectionPoolBase<1>;
+
+} // mutty
 #endif

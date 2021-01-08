@@ -9,6 +9,7 @@
 #include "base/handler/MessageQueue.h"
 #include "base/timer/Timer.h"
 #include "Multiplexer.h"
+namespace mutty {
 
 class Looper {
 public:
@@ -49,4 +50,6 @@ private:
     Multiplexer _poller;
     Timer _scheduler;
 };
+
+} // mutty
 #endif

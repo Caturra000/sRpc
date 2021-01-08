@@ -1,6 +1,8 @@
 #ifndef __UTILS_EXCHANGER_H__
 #define __UTILS_EXCHANGER_H__
 #include <bits/stdc++.h>
+namespace mutty {
+
 // 基于Object造一个对noncopyable有效的any类，把copy都干掉
 class Exchanger final {
 public:
@@ -81,5 +83,5 @@ inline ValueType cast(const Exchanger &object) {
     return cast<const NonRef &>(const_cast<Exchanger&>(object));
 }
 
-
+} // mutty
 #endif

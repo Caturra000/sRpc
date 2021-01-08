@@ -6,6 +6,8 @@
 #include "base/context/ContextImpl.h"
 #include "net/Socket.h"
 #include "net/InetAddress.h"
+namespace mutty {
+
 class Handler;
 class AcceptContext: public ContextImpl {
 public:
@@ -33,4 +35,6 @@ public:
         acceptSocket.bind(localAddress);
     }
 };
+
+} // mutty
 #endif

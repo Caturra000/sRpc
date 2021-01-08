@@ -6,7 +6,7 @@
 #include "utils/Defer.h"
 #include "utils/Algorithms.h"
 #include "utils/Pointer.h"
-
+namespace mutty {
 
 class Timer {
 public:
@@ -19,7 +19,7 @@ public:
             _container.push(std::move(const_cast<TimerEvent&>(e))); //FIXME:可能需要改接口为append
         }
     }
-    // 虽然接口丑了点，但是可以匹配TimerEvent任意构造函数，相比hardcode/多个重载都要方便点
+
     template <typename ...EventConstructorArgs>
     Timer& append(EventConstructorArgs &&...args) {
         std::lock_guard<std::mutex> _{_mutex};
@@ -83,7 +83,7 @@ public:
 
 // Builder Start
 
-    enum URGENCY {
+    enum Urgency {
         MINOR = std::numeric_limits<uint64_t>::max(),
         MAJOR = MINOR >> 30,
         CRITICAL = MAJOR >> 30,
@@ -116,7 +116,7 @@ public:
             return *this;
         }
 
-        TimerHelper priority(URGENCY urgency) {
+        TimerHelper priority(Urgency urgency) {
             _atMost = urgency;
             return *this;
         }
@@ -142,4 +142,5 @@ private:
     ResultSet _reenterables;
 };
 
+} // mutty
 #endif

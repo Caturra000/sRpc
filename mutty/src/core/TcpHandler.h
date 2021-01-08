@@ -8,7 +8,7 @@
 #include "utils/Pointer.h"
 #include "utils/Pointer.h"
 #include "throws/Exceptions.h"
-
+namespace mutty {
 
 class TcpHandler: public Handler {
 public:
@@ -115,5 +115,7 @@ protected:
     Callable _writeCompleteCallback;
     Callable _closeCallback;
 };
+
+} // mutty
 
 #endif

@@ -4,6 +4,7 @@
 #include "Buffer.h"
 #include "utils/Callable.h"
 #include "utils/Algorithms.h"
+namespace mutty {
 
 // using CachedBuffer = std::shared_ptr<Buffer>; // 不需要引用计数
 
@@ -23,10 +24,6 @@ public:
 private:
     std::function<void(CachedBuffer&)> _destructor;
 };
-
-
-
-
 
 class BufferPool {
 public:
@@ -52,4 +49,6 @@ private:
 
 
 };
+
+} // mutty
 #endif

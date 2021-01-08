@@ -1,6 +1,7 @@
 #ifndef __UTILS_STRING_UTILS_H__
 #define __UTILS_STRING_UTILS_H__
 #include <bits/stdc++.h>
+namespace mutty {
 
 
 // 只能用于文本，二进制流不兼容
@@ -44,5 +45,7 @@ T toDec(const std::string &str) {
     }
     return dec;
 }
+
+} // mutty
 
 #endif

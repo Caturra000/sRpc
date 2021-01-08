@@ -4,6 +4,7 @@
 #include "utils/Callable.h"
 #include "utils/Timestamp.h"
 #include "utils/Algorithms.h"
+namespace mutty {
 
 struct TimerEvent {
     Timestamp _when;
@@ -29,4 +30,5 @@ struct TimerEvent {
     }
 };
 
+} // mutty
 #endif

@@ -5,6 +5,8 @@
 #include <bits/stdc++.h>
 #include "utils/Algorithms.h"
 #include "net/Socket.h"
+namespace mutty {
+
 // 一个简单的Socket IO Buffer
 // 提供char*兼容，以及尽可能延迟扩容
 class Buffer {
@@ -146,4 +148,6 @@ inline int Buffer::readFrom(int fd) {
     // n < 0 error
     return n;
 }
+
+} // mutty
 #endif

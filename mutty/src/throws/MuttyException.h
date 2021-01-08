@@ -1,6 +1,8 @@
 #ifndef __MUTTY_EXCEPTION_H__
 #define __MUTTY_EXCEPTION_H__
 #include <bits/stdc++.h>
+namespace mutty {
+
 class MuttyException: public std::exception {
 private:
     const char *_info;
@@ -10,4 +12,6 @@ public:
     const char* what() const noexcept override
         { return _info; }
 };
+
+} // mutty
 #endif

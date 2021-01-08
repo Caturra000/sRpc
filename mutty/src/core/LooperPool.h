@@ -5,6 +5,7 @@
 #include "utils/ThreadPool.h"
 #include "utils/Compat.h"
 #include "Looper.h"
+namespace mutty {
 
 // 具体用途是每次accept都分配到固定大小的Looper池中
 template <size_t N>
@@ -32,4 +33,5 @@ private:
     ThreadPool _threads;
 };
 
+} // mutty
 #endif

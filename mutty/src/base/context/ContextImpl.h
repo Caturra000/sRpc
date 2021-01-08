@@ -8,6 +8,7 @@
 #include "utils/Pointer.h"
 #include "core/Looper.h"
 #include "core/Multiplexer.h"
+namespace mutty {
 
 class Handler;
 
@@ -111,4 +112,5 @@ protected:
     
 };
 
+} // mutty
 #endif

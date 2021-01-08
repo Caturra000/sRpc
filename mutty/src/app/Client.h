@@ -12,6 +12,7 @@
 #include "core/TcpPolicy.h"
 #include "net/InetAddress.h"
 #include "net/Socket.h"
+namespace mutty {
 
 class Client {
 public:
@@ -44,9 +45,6 @@ private:
     InetAddress _serverAddress;
     Millisecond _retryInterval {50ms};
     bool _retry {true};
-    // SingleConnectionPool _reusableConnection;
-    // 目前考虑的问题是Handler是否要求无状态 
-    // ctx并不需维护什么状态，只需有TcpHandler/TcpContext就好了
 
 // for TcpHandler
 
@@ -106,4 +104,6 @@ inline void Client::tcpCallbackInit(TcpHandler *connection) {
     if(_writeCompletePolicy) _writeCompletePolicy->onWriteComplete(connection);
     if(_closePolicy) _closePolicy->onClose(connection);
 }
+
+} // mutty
 #endif

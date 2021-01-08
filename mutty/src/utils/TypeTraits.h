@@ -1,6 +1,7 @@
 #ifndef __UTILS_TYPE_TRAITS_H__
 #define __UTILS_TYPE_TRAITS_H__
 #include <functional>
+namespace mutty {
 
 // test:
 // void f(int a) {}
@@ -20,4 +21,6 @@ inline constexpr auto isCallable(F &&f, Args &&...args)
 
 template<typename ...Args>
 using IsCallableType = decltype(isCallable<Args...>);
+
+} // mutty
 #endif

@@ -1,6 +1,7 @@
 #ifndef __UTILS_FAST_IO_H__
 #define __UTILS_FAST_IO_H__
 #include <bits/stdc++.h>
+namespace mutty {
 
 struct IoResult {
     const char *buf;
@@ -59,4 +60,5 @@ private:
     size_t cur = 0;
 };
 
+} // mutty
 #endif

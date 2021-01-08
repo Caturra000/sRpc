@@ -1,6 +1,7 @@
 #ifndef __UTILS_POINTER_H__
 #define __UTILS_POINTER_H__
 #include <bits/stdc++.h>
+namespace mutty {
 
 // 实现一个安全的指针，不允许控制生命周期
 // 需要提供：
@@ -60,4 +61,7 @@ protected:
     std::cout << &(*pv) << std::endl;
     std::cout << &(*pv2) << std::endl;
 */
+
+} // mutty
+
 #endif

@@ -7,6 +7,7 @@
 #include "utils/Timestamp.h"
 #include "base/context/Context.h"
 #include "throws/Exceptions.h"
+namespace mutty {
 
 // 负责epoll的封装
 class Multiplexer {
@@ -20,7 +21,7 @@ public:
     }
     ~Multiplexer() { close(_epollFd); }
 
-    void poll(Nanosecond timeout) { //支持ns的表示，虽然实现上用不着，因为epoll粒度是ms
+    void poll(Nanosecond timeout) { //兼容ns表示，但epoll粒度是ms
         int count = epoll_wait(_epollFd, _events.data(), _events.size(), 
                         std::chrono::duration_cast<Millisecond>(timeout).count());
         if(count < 0) throw EpollWaitException(errno);
@@ -35,8 +36,6 @@ public:
         if(epoll_ctl(_epollFd, operation, ctx->fd(), &event)) {
             throw EpollControlException(errno);
         }
-            // TODO
-        // }
     }
 
 private:
@@ -66,4 +65,5 @@ private:
     }
 };
 
+} // mutty
 #endif

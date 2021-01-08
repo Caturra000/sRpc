@@ -1,6 +1,7 @@
 #ifndef __UTILS_CALLABLE_H__
 #define __UTILS_CALLABLE_H__
 #include <bits/stdc++.h>
+namespace mutty {
 
 // @brief: a wrapper of std::function, mainly used for callback
 // @usage:
@@ -31,5 +32,5 @@ protected:
 };
 
 // IMRPOVEMENT: 提供CountDownCallable
-
+} // mutty
 #endif

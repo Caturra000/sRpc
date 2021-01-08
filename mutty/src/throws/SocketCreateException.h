@@ -1,6 +1,8 @@
 #ifndef __SOCKET_CREATE_EXCEPTION_H__
 #define __SOCKET_CREATE_EXCEPTION_H__
 #include "SocketException.h"
+namespace mutty {
+
 class SocketCreateException: public SocketException {
 public:
     static constexpr const char *TAG = "socket create exception";
@@ -8,4 +10,6 @@ public:
     SocketCreateException(int err)
         : SocketException(TAG, err) { }
 };
+
+} // mutty
 #endif

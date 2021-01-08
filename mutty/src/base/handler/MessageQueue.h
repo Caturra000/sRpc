@@ -2,10 +2,8 @@
 #define __MESSAGE_QUEUE_H__
 #include <bits/stdc++.h>
 #include "Message.h"
+namespace mutty {
 
-// 一个用于MPSC场合的消息队列
-// 如果确定msg都是从同一个Multiplexer传过来的，那么是可以保证无需上锁
-// 但是用到外围的特性（目前只有定时器）则需要上锁，这里没用到timerfd，而是额外的线程去实现定时
 class MessageQueue {
 public:
     int size() const { return _queue.size(); }
@@ -45,4 +43,6 @@ inline Message MessageQueue::next() {
     _queue.pop();
     return msg;
 }
+
+} // mutty
 #endif

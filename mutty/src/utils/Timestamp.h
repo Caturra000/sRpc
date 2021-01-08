@@ -1,6 +1,7 @@
 #ifndef __UTILS_TIMESTAMP_H__
 #define __UTILS_TIMESTAMP_H__
 #include <chrono>
+namespace mutty {
 
 // using std::chrono::system_clock;
 using namespace std::literals::chrono_literals;
@@ -18,4 +19,5 @@ Timestamp now() { return std::chrono::system_clock::now(); }
 Timestamp nowAfter(Nanosecond interval) { return now() + interval; }
 Timestamp nowBefore(Nanosecond interval) { return now() - interval; }
 
+} // mutty
 #endif

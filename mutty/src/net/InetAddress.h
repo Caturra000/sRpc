@@ -5,6 +5,9 @@
 #include <netinet/in.h>
 #include <string>
 #include "utils/StringUtils.h"
+namespace mutty {
+
+
 // 对地址类的浅层封装，要求大小与sockaddr_in一致
 struct InetAddress {
 public:
@@ -51,6 +54,6 @@ private:
     
 };
 
-
+} // mutty
 
 #endif

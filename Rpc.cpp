@@ -1,7 +1,10 @@
 #include <bits/stdc++.h>
 
-#include "vsJSON/VsJson.cpp"
-#include "mutty/Mutty.cpp"
+#include "mutty/mutty.hpp"
+#include "vsjson/vsjson.hpp"
+using namespace mutty;
+using namespace vsjson;
+
 template <typename F>
 class CallProxy {
 public:
@@ -231,6 +234,7 @@ private:
 
 
 int main() try {
+    std::cout << "o55" << std::endl;
     // std::function<int(int, int)> func = add;
 
     // CallProxy<decltype(add)> cf = add;

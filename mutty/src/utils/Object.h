@@ -1,6 +1,8 @@
 #ifndef __UTILS_OBJECT_H__
 #define __UTILS_OBJECT_H__
 #include <bits/stdc++.h>
+namespace mutty {
+
 // 实现C++11下的std::any
 class Object final {
 public:
@@ -87,5 +89,5 @@ inline ValueType cast(const Object &object) {
     return cast<const NonRef &>(const_cast<Object&>(object));
 }
 
-
+} // mutty
 #endif
