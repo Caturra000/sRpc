@@ -4,14 +4,14 @@
 #include "vsjson/vsjson.hpp"
 using namespace vsjson;
 
+
 template <typename F>
 class CallProxy {
 public:
-    
+
     CallProxy(F func): _func(std::move(func)) {}
-    Json operator()(const char* stream, size_t len) {
-        // 隐式转换
-        return dispatch(_func, stream, len); // FIXME 返回引用会decay
+    Json operator()(Json json) {
+        return dispatch(_func, json);
     }
 
 private:
@@ -20,13 +20,13 @@ private:
     template <typename Ret, typename ...Args, 
     typename WrappedRet = std::conditional_t<
         std::is_same<Ret, void>::value, nullptr_t, Ret>>
-    WrappedRet dispatch(Ret (*func)(Args...), const char *&stream, size_t len) {
+    WrappedRet dispatch(Ret (*func)(Args...), Json &args) {
         using ArgsTuple = std::tuple<std::decay_t<Args>...>;
         constexpr size_t N = sizeof...(Args);
-        // 从stream构造tuple
-        ArgsTuple argsTuple = make<ArgsTuple>(stream, std::make_index_sequence<N>{});
+        // 从json构造tuple
+        ArgsTuple argsTuple = make<ArgsTuple>(args, std::make_index_sequence<N>{});
         // 用tuple构造回原来的args，调用并返回
-        WrappedRet result = invoke<Ret>(argsTuple); 
+        WrappedRet result = invoke<Ret>(std::move(argsTuple)); 
         return result; // 如果为void，返回nullptr
     }
 
@@ -34,14 +34,12 @@ private:
     template <typename Ret, typename ...Args, 
     typename WrappedRet = std::conditional_t<
         std::is_same<Ret, void>::value, nullptr_t, Ret>>
-    WrappedRet dispatch(std::function<Ret(Args...)> &func, const char *&stream, size_t len) {
+    WrappedRet dispatch(std::function<Ret(Args...)> &func, Json &args) {
         using ArgsTuple = std::tuple<std::decay_t<Args>...>;
         constexpr size_t N = sizeof...(Args);
-        // 从stream构造tuple
-        ArgsTuple argsTuple = make<ArgsTuple>(stream, std::make_index_sequence<N>{});
-        // 用tuple构造回原来的args，调用并返回
+        ArgsTuple argsTuple = make<ArgsTuple>(args, std::make_index_sequence<N>{});
         WrappedRet result = invoke<Ret>(argsTuple); 
-        return result; // 如果为void，返回nullptr
+        return result;
     }
 
     // 成员函数  FIXME 接口不一致
@@ -49,10 +47,10 @@ private:
     // typename WrappedRet = std::conditional_t<
     //     std::is_same<Ret, void>::value, nullptr_t, Ret>>
     // WrappedRet dispatch(Ret (Class::*func)(Args...), Class *obj, 
-    //                     const char *stream, size_t len) {
+    //                     Json &args, size_t len) {
     //     using ArgsTuple = std::tuple<std::decay_t<Args>...>;
     //     constexpr size_t N = sizeof...(Args);
-    //     ArgsTuple argsTuple = make<ArgsTuple>(stream, std::make_index_sequence<N>{});
+    //     ArgsTuple argsTuple = make<ArgsTuple>(args, std::make_index_sequence<N>{});
     //     auto wrappedFunc = [=](Args... args) -> Ret { return (obj->*func)(args...); };
     //     WrappedRet result = invoke<Ret>(argsTuple); 
     //     return result;
@@ -60,31 +58,21 @@ private:
 
     // TODO  lambda
 
-    // 从stream中处理整个tuple
+    // 从json中处理整个tuple
     template <typename Tuple, size_t ...Is>
-    Tuple make(const char *&from, std::index_sequence<Is...>) {
+    Tuple make(Json &json, std::index_sequence<Is...>) {
         Tuple tuple;
-        std::initializer_list<int> { (get<Tuple, Is>(from, tuple), 0)... };
+        std::initializer_list<int> { (get<Tuple, Is>(json, tuple), 0)... };
         return tuple;
     }
 
-    // TODO const char* / char* 需要额外处理size和生命周期
-    // 或者不接受任何指针形式，只处理定长struct， 后续加强到仅限POD
-    // 从stream中处理单个elem
-    template <typename Tuple, size_t I, typename ElemType = std::decay_t<decltype(std::get<I>(Tuple{}))>>
-    auto get(const char *&from, Tuple &to) -> std::enable_if_t<!std::is_pointer<ElemType>::value> {
-        constexpr size_t size = sizeof(std::get<I>(to));
-        memcpy(std::addressof(std::get<I>(to)), from, size);
-        from += size;
+    // 从json中处理单个elem
+    template <typename Tuple, size_t I>
+    void get(Json &from, Tuple &to) {
+        using ElemType = std::decay_t<decltype(std::get<I>(to))>;
+        std::get<I>(to) = std::move(from[I]).to<ElemType>();
     }
 
-    // 指针不好处理
-    // template <typename Tuple, size_t I, typename ElemType = std::decay_t<decltype(std::get<I>(Tuple{}))>>
-    // auto get(const char *&from, Tuple &to) -> std::enable_if_t<std::is_pointer<ElemType>::value> {
-    //     new(std::addressof(std::get<I>(to))) ElemType((ElemType)from);  // FIXME
-    //     from += strlen(from) + 1; // +'\0'
-    // }
-    
     // 通过tuple的形式调用func
     template <typename Ret, typename Tuple,
     typename = std::enable_if_t<!std::is_same<Ret, void>::value>>
@@ -106,7 +94,9 @@ private:
         return _func(std::get<Is>(std::forward<Tuple>(tuple))...);
     }
 
+private:
     std::decay_t<F> _func;
+    
 };
 
 #endif
