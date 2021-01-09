@@ -97,6 +97,11 @@ public:
         });
     }
 
+    // unsafe
+    void send(const void *data, int length) {
+        _ctx->send(data, length);
+    }
+
     bool isContextDisconnected() {
         return _ctx->isDisConnected();
     }

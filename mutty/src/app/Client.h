@@ -28,6 +28,46 @@ public:
     void disableRetry() { _retry = false; }
     bool isRetryEnabled() { return _retry; }
 
+    // unsafe
+    void send(const void *data, int length) { 
+        _connection->send(data, length);
+    }
+
+    // for async
+    void join() { while(!_hasEnabled || _looper->onStop()); }
+
+    // for async
+    // 用于合并提交，可处理分离的逻辑，并保证线程安全
+    class Transaction {
+    public:
+        template <typename ...Args>
+        Transaction(Client *thisClient, Args &&...args)
+            : _thisClient(thisClient),
+              _callable(Callable::make(std::forward<Args>(args)...)) {}
+        
+        template <typename ...Args>
+        Transaction& then(Args &&...args) {
+            auto callable = std::move(_callable);
+            _callable = Callable::make([=, callable = std::move(callable)] {
+                callable();
+                Callable::make(args...)();
+            });
+            return *this;
+        }
+        void commit() {
+            _thisClient->_looper->getScheduler()->runAt(now())
+                .with(std::move(_callable));
+        }
+    private:
+        Callable _callable;
+        Client *_thisClient;
+    };
+
+    template <typename ...Args>
+    Transaction startTransaction(Args &&...args) {
+        return Transaction(this, std::forward<Args>(args)...);
+    }
+
     TCP_POLICY_CALLBACK_DEFINE(onConnect, _connectPolicy)
     TCP_POLICY_CALLBACK_DEFINE(onMessage, _messagePolicy)
     TCP_POLICY_CALLBACK_DEFINE(onWriteComplete, _writeCompletePolicy)
@@ -45,6 +85,7 @@ private:
     InetAddress _serverAddress;
     Millisecond _retryInterval {50ms};
     bool _retry {true};
+    bool _hasEnabled {false};
 
 // for TcpHandler
 
@@ -53,6 +94,14 @@ private:
     std::unique_ptr<TcpPolicy> _writeCompletePolicy;
     std::unique_ptr<TcpPolicy> _closePolicy;
 
+};
+
+// 把简单的消息循环放到异步线程中
+class AsyncLooperContainer {
+public:
+    Looper* get() { return _container.pick().get(); }
+private:
+    LooperPool<1> _container;
 };
 
 void Client::connect() {
@@ -87,6 +136,7 @@ inline void Client::connecting(Socket socket) {
         _looper.get(), std::move(socket), InetAddress{/*NONE*/}, _serverAddress);
     tcpCallbackInit(_connection.get()); // FIXME EINPROGRESS EINTR
     _connection->init();
+    _hasEnabled = true;
 }
 
 inline void Client::retry() {
