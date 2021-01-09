@@ -1,7 +1,7 @@
 #ifndef __RPC_CALL_PROXY_H__
 #define __RPC_CALL_PROXY_H__
 #include <bits/stdc++.h>
-#include "vsjson/vsjson.hpp"
+#include "vsjson.hpp"
 using namespace vsjson;
 
 

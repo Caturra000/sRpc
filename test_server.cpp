@@ -1,21 +1,10 @@
 #include <bits/stdc++.h>
-#include "mutty/mutty.hpp"
-#include "vsjson/vsjson.hpp"
+#include "mutty.hpp"
+#include "vsjson.hpp"
 #include "RpcServer.h"
+#include "point.h"
 using namespace mutty;
 using namespace vsjson;
-
-struct Point {
-    int x, y, z;
-    operator Json() { return Json::array(x, y, z); }
-    Point(int x, int y, int z): x(x), y(y), z(z) {}
-    Point(const std::vector<vsjson::Json> &array)
-        : x(array[0].to<int>()),
-          y(array[1].to<int>()),
-          z(array[2].to<int>()) {}
-    Point() = default;
-};
-
 
 int add(int a, int b) {
     return a+b;

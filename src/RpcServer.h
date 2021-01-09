@@ -1,8 +1,8 @@
 #ifndef __RPC_RPC_SERVER_H__
 #define __RPC_RPC_SERVER_H__
 #include <bits/stdc++.h>
-#include "mutty/mutty.hpp"
-#include "vsjson/vsjson.hpp"
+#include "mutty.hpp"
+#include "vsjson.hpp"
 #include "CallProxy.h"
 #include "Codec.h"
 #include "RpcField.h"

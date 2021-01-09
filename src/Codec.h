@@ -1,7 +1,7 @@
 #ifndef __RPC_CODEC_H__
 #define __RPC_CODEC_H__
-#include "mutty/mutty.hpp"
-#include "vsjson/vsjson.hpp"
+#include "mutty.hpp"
+#include "vsjson.hpp"
 using namespace mutty;
 using namespace vsjson;
 

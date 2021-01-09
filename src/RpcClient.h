@@ -1,7 +1,7 @@
 #ifndef __RPC_RPC_CLIENT_H__
 #define __RPC_RPC_CLIENT_H__
-#include "mutty/mutty.hpp"
-#include "vsjson/vsjson.hpp"
+#include "mutty.hpp"
+#include "vsjson.hpp"
 #include "Codec.h"
 #include "RpcField.h"
 using namespace mutty;
