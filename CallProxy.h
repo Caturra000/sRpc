@@ -68,13 +68,22 @@ private:
         return tuple;
     }
 
+    // TODO const char* / char* 需要额外处理size和生命周期
+    // 或者不接受任何指针形式，只处理定长struct， 后续加强到仅限POD
     // 从stream中处理单个elem
-    template <typename Tuple, size_t I>
-    void get(const char *&from, Tuple &to) {
+    template <typename Tuple, size_t I, typename ElemType = std::decay_t<decltype(std::get<I>(Tuple{}))>>
+    auto get(const char *&from, Tuple &to) -> std::enable_if_t<!std::is_pointer<ElemType>::value> {
         constexpr size_t size = sizeof(std::get<I>(to));
         memcpy(std::addressof(std::get<I>(to)), from, size);
         from += size;
     }
+
+    // 指针不好处理
+    // template <typename Tuple, size_t I, typename ElemType = std::decay_t<decltype(std::get<I>(Tuple{}))>>
+    // auto get(const char *&from, Tuple &to) -> std::enable_if_t<std::is_pointer<ElemType>::value> {
+    //     new(std::addressof(std::get<I>(to))) ElemType((ElemType)from);  // FIXME
+    //     from += strlen(from) + 1; // +'\0'
+    // }
     
     // 通过tuple的形式调用func
     template <typename Ret, typename Tuple,

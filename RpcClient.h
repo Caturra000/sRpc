@@ -29,10 +29,8 @@ public:
             std::string dump = request->dump();
             uint32_t length = dump.length();
             // TODO 实现类似folly的then
-            client.startTransaction([this, length, data = std::move(dump)] {
-                client.send(&length, sizeof(uint32_t));
-                client.send(data.c_str(), length);
-            }).commit();
+            client.send(&length, sizeof(uint32_t));
+            client.send(dump.c_str(), length);
             client.startTransaction([=] {
                 trySetValue(token, promise);
             }).commit();
