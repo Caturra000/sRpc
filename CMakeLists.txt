@@ -13,4 +13,5 @@ include_directories(INCLUDE_DIR ${INCLUDE_DIR} src)
 include_directories(INCLUDE_DIR ${INCLUDE_DIR} mutty/src)
 include_directories(INCLUDE_DIR ${INCLUDE_DIR} vsjson/src)
 
-add_executable(rpc Rpc.cpp)
+add_executable(sserver sServer.cpp)
+add_executable(sclient sClient.cpp)
