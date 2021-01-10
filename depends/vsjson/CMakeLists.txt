@@ -1,7 +1,0 @@
-cmake_minimum_required(VERSION 3.0.0)
-project(vsjson VERSION 0.1.0 LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED on)
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -pthread")
-include_directories(INCLUDE_DIR ${INCLUDE_DIR} ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR})

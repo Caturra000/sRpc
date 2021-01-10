@@ -6,8 +6,6 @@ set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
 
-add_subdirectory(depends/vsjson)
-add_subdirectory(depends/mutty)
 
 include_directories(INCLUDE_DIR ${INCLUDE_DIR} src)
 include_directories(INCLUDE_DIR ${INCLUDE_DIR} depends/mutty depends/mutty/src)
