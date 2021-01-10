@@ -2,7 +2,7 @@
 #include "mutty.hpp"
 #include "vsjson.hpp"
 #include "RpcServer.h"
-#include "point.h"
+#include "Point.h"
 using namespace mutty;
 using namespace vsjson;
 
