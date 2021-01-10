@@ -1,0 +1,6 @@
+[submodule "depends/mutty"]
+	path = depends/mutty
+	url = https://github.com/Caturra000/mutty.git
+[submodule "depends/vsjson"]
+	path = depends/vsjson
+	url = https://github.com/Caturra000/vsJSON.git
