@@ -23,7 +23,7 @@ public:
         _server.onMessage([this](std::weak_ptr<TcpContext> context) {
             if(auto ctx = context.lock()) {
                 auto &buffer = ctx->inputBuffer;
-                if(_codec.verify(buffer)) {
+                while(_codec.verify(buffer)) {
                     auto request = _codec.decode(buffer);
                     auto token = request[RpcField::TOKEN].to<int>();
                     auto &args = request[RpcField::ARGS];

@@ -70,7 +70,7 @@ public:
             _connectPromise.set_value(true);
         });
         _client.onMessage([this](TcpContext *ctx) {
-            if(codec.verify(ctx->inputBuffer)) {
+            while(codec.verify(ctx->inputBuffer)) {
                 Json response = codec.decode(ctx->inputBuffer);
                 int token = response[RpcField::TOKEN].as<int>();
                 _records[token] = std::move(response[RpcField::RETURN]);
