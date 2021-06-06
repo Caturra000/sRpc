@@ -17,9 +17,6 @@ public:
     }
 
     void start() {
-        _server.onConnect([] {
-            std::cout << "connected" << std::endl;
-        });
         _server.onMessage([this](std::weak_ptr<TcpContext> context) {
             if(auto ctx = context.lock()) {
                 auto &buffer = ctx->inputBuffer;
@@ -40,9 +37,6 @@ public:
                     uint32_t beLength = htonl(length);
                     ctx->send(&beLength, sizeof(uint32_t));
                     ctx->send(dump.c_str(), length);
-
-                    std::cout << "sent!" << std::endl;
-                    std::cout << "{" << length << dump << "}" << std::endl;
                 }
             }
         });

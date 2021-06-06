@@ -16,9 +16,9 @@ public:
             promise->set_value(std::move(iter->second).to<T>());
             _records.erase(iter);
         } else {
-            _client.startTransaction([=] {
+            _client.async([=] {
                 trySetValue(token, promise);
-            }).commit(); // retry
+            }); // retry
         }
     }
 
@@ -30,9 +30,9 @@ public:
             promise->set_value();
             _records.erase(iter);
         } else {
-            _client.startTransaction([=] {
+            _client.async([=] {
                 trySetValue(token, promise);
-            }).commit(); // retry
+            }); // retry
         }
     }
 
@@ -40,7 +40,7 @@ public:
     std::future<T> call(const std::string &func, Args &&...args) {
         auto request = std::make_shared<Json>(makeRequest(func, std::forward<Args>(args)...));
         auto promise = std::make_shared<std::promise<T>>();
-        _client.startTransaction([this, request, promise] {
+        _client.async([this, request, promise] {
             int token = ++_idGen;
             (*request)[RpcField::TOKEN] = token;
             std::string dump = request->dump();
@@ -49,10 +49,10 @@ public:
             // TODO 实现类似folly的then
             _client.send(&beLength, sizeof(uint32_t));
             _client.send(dump.c_str(), length);
-            _client.startTransaction([=] {
+            _client.async([=] {
                 trySetValue(token, promise);
-            }).commit();
-        }).commit();
+            });
+        });
         return promise->get_future();
     }
 
@@ -61,7 +61,7 @@ public:
         return _connectPromise.get_future();
     }
 
-    void join() { _client.join(); }
+    void join() { _client.stopLatch(); }
 
     RpcClient(const InetAddress &serverAddress)
         : _client(_looperContainer.get(), serverAddress),

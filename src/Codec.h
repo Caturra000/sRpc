@@ -17,7 +17,7 @@ public:
     Json decode(Buffer &buffer) {
         uint32_t beLength = *reinterpret_cast<uint32_t*>(buffer.readBuffer());
         uint32_t length = ntohl(beLength);
-        buffer.read(sizeof(uint32_t));
+        buffer.hasRead(sizeof(uint32_t));
         // char ch;
         // bool overload = buffer.readBuffer() + length != buffer.end();
         // if(overload) {
@@ -29,7 +29,7 @@ public:
         // if(overload) {
         //     buffer.readBuffer()[length] = ch;
         // }
-        buffer.read(length);
+        buffer.hasRead(length);
         return json;
     }
 };
