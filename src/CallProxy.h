@@ -2,61 +2,32 @@
 #define __RPC_CALL_PROXY_H__
 #include <bits/stdc++.h>
 #include "vsjson.hpp"
+#include "FunctionTraits.h"
 using namespace vsjson;
 
 
 template <typename F>
 class CallProxy {
 public:
-
     CallProxy(F func): _func(std::move(func)) {}
     Json operator()(Json json) {
-        return dispatch(_func, json);
+        return dispatch(json);
     }
 
 private:
-
-    // 函数指针
-    template <typename Ret, typename ...Args, 
-    typename WrappedRet = std::conditional_t<
-        std::is_same<Ret, void>::value, nullptr_t, Ret>>
-    WrappedRet dispatch(Ret (*func)(Args...), Json &args) {
-        using ArgsTuple = std::tuple<std::decay_t<Args>...>;
-        constexpr size_t N = sizeof...(Args);
+    template <typename WrappedRet = std::conditional_t<
+        std::is_same<typename FunctionTraits<F>::ReturnType, void>::value,
+            nullptr_t, typename FunctionTraits<F>::ReturnType>>
+    WrappedRet dispatch(Json &args) {
+        using Ret = typename FunctionTraits<F>::ReturnType;
+        using ArgsTuple = typename FunctionTraits<F>::ArgsTuple;
+        constexpr size_t N = FunctionTraits<F>::ArgsSize;
         // 从json构造tuple
         ArgsTuple argsTuple = make<ArgsTuple>(args, std::make_index_sequence<N>{});
         // 用tuple构造回原来的args，调用并返回
-        WrappedRet result = invoke<Ret>(std::move(argsTuple)); 
+        WrappedRet result = invoke<Ret>(std::move(argsTuple));
         return result; // 如果为void，返回nullptr
     }
-
-    // std::function
-    template <typename Ret, typename ...Args, 
-    typename WrappedRet = std::conditional_t<
-        std::is_same<Ret, void>::value, nullptr_t, Ret>>
-    WrappedRet dispatch(std::function<Ret(Args...)> &func, Json &args) {
-        using ArgsTuple = std::tuple<std::decay_t<Args>...>;
-        constexpr size_t N = sizeof...(Args);
-        ArgsTuple argsTuple = make<ArgsTuple>(args, std::make_index_sequence<N>{});
-        WrappedRet result = invoke<Ret>(argsTuple); 
-        return result;
-    }
-
-    // 成员函数  FIXME 接口不一致
-    // template <typename Ret, typename Class, typename ...Args, 
-    // typename WrappedRet = std::conditional_t<
-    //     std::is_same<Ret, void>::value, nullptr_t, Ret>>
-    // WrappedRet dispatch(Ret (Class::*func)(Args...), Class *obj, 
-    //                     Json &args, size_t len) {
-    //     using ArgsTuple = std::tuple<std::decay_t<Args>...>;
-    //     constexpr size_t N = sizeof...(Args);
-    //     ArgsTuple argsTuple = make<ArgsTuple>(args, std::make_index_sequence<N>{});
-    //     auto wrappedFunc = [=](Args... args) -> Ret { return (obj->*func)(args...); };
-    //     WrappedRet result = invoke<Ret>(argsTuple); 
-    //     return result;
-    // }
-
-    // TODO  lambda
 
     // 从json中处理整个tuple
     template <typename Tuple, size_t ...Is>
@@ -96,7 +67,6 @@ private:
 
 private:
     std::decay_t<F> _func;
-    
 };
 
 #endif

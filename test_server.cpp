@@ -6,9 +6,9 @@
 using namespace mutty;
 using namespace vsjson;
 
-int add(int a, int b) {
-    return a+b;
-}
+// int add(int a, int b) {
+//     return a+b;
+// }
 
 std::string append(std::string a, std::string b) {
     return a+b;
@@ -20,7 +20,7 @@ Point pointAdd(Point a, Point b) {
 int main() {
     Looper looper;
     RpcServer server(&looper, InetAddress("127.0.0.1", 23333));
-    server.bind("add", add);
+    server.bind("add", [](int a, int b) { return a+b; });
     server.bind("append", append);
     server.bind("pointAdd", pointAdd);
     server.start();
