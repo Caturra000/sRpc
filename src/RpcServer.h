@@ -32,17 +32,30 @@ inline void RpcServer::start() {
             auto &buffer = ctx->inputBuffer;
             while(_codec.verify(buffer)) {
                 auto request = _codec.decode(buffer);
-                auto id = request[Protocol::id].to<int>();
-                auto &args = request[Protocol::params];
-                auto method = std::move(request[Protocol::method]).to<std::string>();
+                auto id = request[protocol::Field::id].to<int>();
+                auto &args = request[protocol::Field::params];
+                auto method = std::move(request[protocol::Field::method]).to<std::string>();
                 vsjson::Json response =
                 {
-                    {Protocol::jsonrpc, Protocol::version},
-                    {Protocol::id, id},
+                    {protocol::Field::jsonrpc, protocol::Attribute::version},
+                    {protocol::Field::id, id},
                 };
 
-                response[Protocol::result] = netCall(method, std::move(args));
-
+                try {
+                    response[protocol::Field::result] = netCall(method, std::move(args));
+                } catch(const protocol::Exception &e) {
+                    if(response.contains(protocol::Field::result)) {
+                        auto &obj = response.as<vsjson::ObjectImpl>();
+                        obj.erase(protocol::Field::result);
+                        response[protocol::Field::error] = {
+                            {protocol::Field::code, e.code}
+                        };
+                        if(!e.message.empty()) {
+                            auto &err = response[protocol::Field::error];
+                            err[protocol::Field::message] = std::move(e.message);
+                        }
+                    }
+                }
                 std::string dump = response.dump();
                 uint32_t length = dump.length();
                 uint32_t beLength = htonl(length);

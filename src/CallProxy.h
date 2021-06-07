@@ -3,6 +3,7 @@
 #include <bits/stdc++.h>
 #include "vsjson.hpp"
 #include "FunctionTraits.h"
+#include "Protocol.h"
 namespace srpc {
 
 template <typename F>
@@ -19,6 +20,12 @@ private: /// IMPL
         using Ret = typename FunctionTraits<F>::ReturnType;
         using ArgsTuple = typename FunctionTraits<F>::ArgsTuple;
         constexpr size_t N = FunctionTraits<F>::ArgsSize;
+        if(N != args.arraySize()) {
+            throw protocol::Exception(
+                protocol::Attribute::invalidRequestCode,
+                protocol::Attribute::invalidRequest
+            );
+        }
         // 从json构造tuple
         ArgsTuple argsTuple = make<ArgsTuple>(args, std::make_index_sequence<N>{});
         // 用tuple构造回原来的args，调用并返回

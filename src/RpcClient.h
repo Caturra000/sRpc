@@ -43,7 +43,7 @@ inline std::future<T> RpcClient::call(const std::string &func, Args &&...args) {
     auto promise = std::make_shared<std::promise<T>>();
     _client.async([this, request, promise] {
         int id = ++_idGen;
-        (*request)[Protocol::id] = id;
+        (*request)[protocol::Field::id] = id;
         std::string dump = request->dump();
         uint32_t length = dump.length();
         uint32_t beLength = htonl(length);
@@ -71,8 +71,8 @@ inline RpcClient::RpcClient(const mutty::InetAddress &serverAddress)
     _client.onMessage([this](mutty::TcpContext *ctx) {
         while(codec.verify(ctx->inputBuffer)) {
             vsjson::Json response = codec.decode(ctx->inputBuffer);
-            int id = response[Protocol::id].as<int>();
-            _records[id] = std::move(response[Protocol::result]);
+            int id = response[protocol::Field::id].as<int>();
+            _records[id] = std::move(response[protocol::Field::result]);
         }
     });
 }
@@ -90,6 +90,7 @@ inline void RpcClient::trySetValue(int id, std::shared_ptr<std::promise<T>> prom
     }
 }
 
+// TODO exception
 inline void RpcClient::trySetValue(int id, std::shared_ptr<std::promise<void>> promise) {
     auto iter = _records.find(id);
     if(iter != _records.end()) {
@@ -112,11 +113,11 @@ template <typename ...Args>
 inline vsjson::Json RpcClient::makeRequest(const std::string &method, Args &&...args) {
     vsjson::Json json =
     {
-        {Protocol::jsonrpc, Protocol::version},
-        {Protocol::method, method},
-        {Protocol::params, vsjson::Json::array()}
+        {protocol::Field::jsonrpc, protocol::Attribute::version},
+        {protocol::Field::method, method},
+        {protocol::Field::params, vsjson::Json::array()}
     };
-    vsjson::Json &argsJson = json[Protocol::params];
+    vsjson::Json &argsJson = json[protocol::Field::params];
     makeRequestImpl(argsJson, std::forward<Args>(args)...);
     return json;
 }
