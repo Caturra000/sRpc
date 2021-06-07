@@ -21,10 +21,7 @@ private: /// IMPL
         using ArgsTuple = typename FunctionTraits<F>::ArgsTuple;
         constexpr size_t N = FunctionTraits<F>::ArgsSize;
         if(N != args.arraySize()) {
-            throw protocol::Exception(
-                protocol::Attribute::invalidRequestCode,
-                protocol::Attribute::invalidRequest
-            );
+            throw protocol::Exception::makeInvalidParamsException();
         }
         // 从json构造tuple
         ArgsTuple argsTuple = make<ArgsTuple>(args, std::make_index_sequence<N>{});

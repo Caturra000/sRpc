@@ -31,14 +31,36 @@ struct Attribute {
 
 class Exception: public std::exception {
 public:
-    explicit Exception(int code): code(code) {}
-    Exception(int code, std::string message)
-        : code(code), message(std::move(message)) {}
-    const char* what() const noexcept override {
-        return "srpc protocol exception";
+    static Exception makeParseErrorException() {
+        return {Attribute::parseErrorCode, Attribute::parseError};
     }
-    int code;
-    std::string message;
+    static Exception makeInvalidRequestException() {
+        return {Attribute::invalidRequestCode, Attribute::invalidRequest};
+    }
+    static Exception makeMethodNotFoundException() {
+        return {Attribute::methodNotFoundCode, Attribute::methodNotFound};
+    }
+    static Exception makeInvalidParamsException() {
+        return {Attribute::invalidParamsCode, Attribute::invalidParams};
+    }
+    static Exception makeInternalErrorException() {
+        return {Attribute::internalErrorCode, Attribute::internalError};
+    }
+
+public:
+    explicit Exception(int code): _code(code) {}
+    Exception(int code, std::string message)
+        : _code(code), _message(std::move(message)) {}
+    const char* what() const noexcept override {
+        return _verbose.c_str();
+    }
+    int code() const { return _code; }
+    const std::string& message() const { return _message; }
+
+private:
+    int _code;
+    std::string _message;
+    const std::string _verbose{"srpc protocol exception: " + _message};
     mutty::Object data; // unused?
 };
 

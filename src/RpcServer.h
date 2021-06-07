@@ -15,11 +15,14 @@ public:
     template <typename F>
     void bind(const std::string &method, const F &func);
 
-    vsjson::Json netCall(const std::string &method, vsjson::Json args);
-
     RpcServer(mutty::Looper *looper,
               const mutty::InetAddress &serverAddress)
         : _server(looper, serverAddress) {}
+
+private:
+    vsjson::Json netCall(const std::string &method, vsjson::Json args);
+    void reportError(vsjson::Json &response, const protocol::Exception &e);
+
 private:
     std::map<std::string, std::function<vsjson::Json(vsjson::Json)>> _table;
     mutty::Server _server;
@@ -44,18 +47,13 @@ inline void RpcServer::start() {
                 try {
                     response[protocol::Field::result] = netCall(method, std::move(args));
                 } catch(const protocol::Exception &e) {
-                    if(response.contains(protocol::Field::result)) {
-                        auto &obj = response.as<vsjson::ObjectImpl>();
-                        obj.erase(protocol::Field::result);
-                        response[protocol::Field::error] = {
-                            {protocol::Field::code, e.code}
-                        };
-                        if(!e.message.empty()) {
-                            auto &err = response[protocol::Field::error];
-                            err[protocol::Field::message] = std::move(e.message);
-                        }
-                    }
+                    reportError(response, e);
+                } catch(const vsjson::JsonException &e) {
+                    reportError(response, protocol::Exception::makeParseErrorException());
+                } catch(const std::exception &e) {
+                    reportError(response, protocol::Exception::makeInternalErrorException());
                 }
+
                 std::string dump = response.dump();
                 uint32_t length = dump.length();
                 uint32_t beLength = htonl(length);
@@ -74,7 +72,26 @@ inline void RpcServer::bind(const std::string &method, const F &func) {
 
 inline vsjson::Json RpcServer::netCall(const std::string &method, vsjson::Json args) {
     // assert args type == jsonArray
-    return _table[method](std::move(args));
+    auto methodHandle = _table.find(method);
+    if(methodHandle != _table.end()) {
+        return _table[method](std::move(args));
+    } else {
+        throw protocol::Exception::makeMethodNotFoundException();
+    }
+}
+
+inline void RpcServer::reportError(vsjson::Json &response, const protocol::Exception &e) {
+    if(response.contains(protocol::Field::result)) {
+        auto &obj = response.as<vsjson::ObjectImpl>();
+        obj.erase(protocol::Field::result);
+    }
+    response[protocol::Field::error] = {
+        {protocol::Field::code, e.code()}
+    };
+    if(!e.message().empty()) {
+        auto &err = response[protocol::Field::error];
+        err[protocol::Field::message] = e.message();
+    }
 }
 
 } // srpc
