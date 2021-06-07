@@ -30,36 +30,34 @@ private:
 };
 
 inline void RpcServer::start() {
-    _server.onMessage([this](std::weak_ptr<mutty::TcpContext> context) {
-        if(auto ctx = context.lock()) {
-            auto &buffer = ctx->inputBuffer;
-            while(_codec.verify(buffer)) {
-                auto request = _codec.decode(buffer);
-                auto id = request[protocol::Field::id].to<int>();
-                auto &args = request[protocol::Field::params];
-                auto method = std::move(request[protocol::Field::method]).to<std::string>();
-                vsjson::Json response =
-                {
-                    {protocol::Field::jsonrpc, protocol::Attribute::version},
-                    {protocol::Field::id, id},
-                };
+    _server.onMessage([this](mutty::TcpContext *context) {
+        auto &buffer = context->inputBuffer;
+        while(_codec.verify(buffer)) {
+            auto request = _codec.decode(buffer);
+            auto id = request[protocol::Field::id].to<int>();
+            auto &args = request[protocol::Field::params];
+            auto method = std::move(request[protocol::Field::method]).to<std::string>();
+            vsjson::Json response =
+            {
+                {protocol::Field::jsonrpc, protocol::Attribute::version},
+                {protocol::Field::id, id},
+            };
 
-                try {
-                    response[protocol::Field::result] = netCall(method, std::move(args));
-                } catch(const protocol::Exception &e) {
-                    reportError(response, e);
-                } catch(const vsjson::JsonException &e) {
-                    reportError(response, protocol::Exception::makeParseErrorException());
-                } catch(const std::exception &e) {
-                    reportError(response, protocol::Exception::makeInternalErrorException());
-                }
-
-                std::string dump = response.dump();
-                uint32_t length = dump.length();
-                uint32_t beLength = htonl(length);
-                ctx->send(&beLength, sizeof(uint32_t));
-                ctx->send(dump.c_str(), length);
+            try {
+                response[protocol::Field::result] = netCall(method, std::move(args));
+            } catch(const protocol::Exception &e) {
+                reportError(response, e);
+            } catch(const vsjson::JsonException &e) {
+                reportError(response, protocol::Exception::makeParseErrorException());
+            } catch(const std::exception &e) {
+                reportError(response, protocol::Exception::makeInternalErrorException());
             }
+
+            std::string dump = response.dump();
+            uint32_t length = dump.length();
+            uint32_t beLength = ::htonl(length);
+            context->send(&beLength, sizeof(uint32_t));
+            context->send(dump.c_str(), length);
         }
     });
     _server.start();
