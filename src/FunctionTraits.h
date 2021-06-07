@@ -1,6 +1,7 @@
-#ifndef __RPC_FUNCTION_TRIAITS_H__
-#define __RPC_FUNCTION_TRIAITS_H__
+#ifndef __SRPC_FUNCTION_TRIAITS_H__
+#define __SRPC_FUNCTION_TRIAITS_H__
 #include <bits/stdc++.h>
+namespace srpc {
 
 template <typename T>
 struct FunctionTraits;
@@ -27,4 +28,5 @@ struct FunctionTraits<Ret(C::*)(Args...) const>: public FunctionTraits<Ret(Args.
 template <typename Callable>
 struct FunctionTraits: public FunctionTraits<decltype(&Callable::operator())> {};
 
+} // srpc
 #endif

@@ -5,6 +5,7 @@
 #include "Point.h"
 using namespace mutty;
 using namespace vsjson;
+using namespace srpc;
 
 // int add(int a, int b) {
 //     return a+b;

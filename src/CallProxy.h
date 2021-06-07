@@ -1,24 +1,21 @@
-#ifndef __RPC_CALL_PROXY_H__
-#define __RPC_CALL_PROXY_H__
+#ifndef __SRPC_CALL_PROXY_H__
+#define __SRPC_CALL_PROXY_H__
 #include <bits/stdc++.h>
 #include "vsjson.hpp"
 #include "FunctionTraits.h"
-using namespace vsjson;
-
+namespace srpc {
 
 template <typename F>
 class CallProxy {
 public:
     CallProxy(F func): _func(std::move(func)) {}
-    Json operator()(Json json) {
-        return dispatch(json);
-    }
+    vsjson::Json operator()(vsjson::Json json) { return dispatch(json); }
 
-private:
+private: /// IMPL
     template <typename WrappedRet = std::conditional_t<
         std::is_same<typename FunctionTraits<F>::ReturnType, void>::value,
             nullptr_t, typename FunctionTraits<F>::ReturnType>>
-    WrappedRet dispatch(Json &args) {
+    WrappedRet dispatch(vsjson::Json &args) {
         using Ret = typename FunctionTraits<F>::ReturnType;
         using ArgsTuple = typename FunctionTraits<F>::ArgsTuple;
         constexpr size_t N = FunctionTraits<F>::ArgsSize;
@@ -31,7 +28,7 @@ private:
 
     // 从json中处理整个tuple
     template <typename Tuple, size_t ...Is>
-    Tuple make(Json &json, std::index_sequence<Is...>) {
+    Tuple make(vsjson::Json &json, std::index_sequence<Is...>) {
         Tuple tuple;
         std::initializer_list<int> { (get<Tuple, Is>(json, tuple), 0)... };
         return tuple;
@@ -39,7 +36,7 @@ private:
 
     // 从json中处理单个elem
     template <typename Tuple, size_t I>
-    void get(Json &from, Tuple &to) {
+    void get(vsjson::Json &from, Tuple &to) {
         using ElemType = std::decay_t<decltype(std::get<I>(to))>;
         std::get<I>(to) = std::move(from[I]).to<ElemType>();
     }
@@ -69,4 +66,5 @@ private:
     std::decay_t<F> _func;
 };
 
+} // srpc
 #endif

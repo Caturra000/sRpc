@@ -5,6 +5,7 @@
 #include "Point.h"
 using namespace mutty;
 using namespace vsjson;
+using namespace srpc;
 
 int main() {
     RpcClient client(InetAddress("127.0.0.1", 23333));
