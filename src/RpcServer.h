@@ -5,7 +5,7 @@
 #include "vsjson.hpp"
 #include "CallProxy.h"
 #include "Codec.h"
-#include "RpcField.h"
+#include "Protocol.h"
 namespace srpc {
 
 class RpcServer: private mutty::NonCopyable {
@@ -13,9 +13,9 @@ public:
     void start();
 
     template <typename F>
-    void bind(const std::string &name, const F &func);
+    void bind(const std::string &method, const F &func);
 
-    vsjson::Json netCall(const std::string &name, vsjson::Json args);
+    vsjson::Json netCall(const std::string &method, vsjson::Json args);
 
     RpcServer(mutty::Looper *looper,
               const mutty::InetAddress &serverAddress)
@@ -32,15 +32,16 @@ inline void RpcServer::start() {
             auto &buffer = ctx->inputBuffer;
             while(_codec.verify(buffer)) {
                 auto request = _codec.decode(buffer);
-                auto token = request[RpcField::TOKEN].to<int>();
-                auto &args = request[RpcField::ARGS];
-                auto name = std::move(request[RpcField::NAME]).to<std::string>();
+                auto id = request[Protocol::id].to<int>();
+                auto &args = request[Protocol::params];
+                auto method = std::move(request[Protocol::method]).to<std::string>();
                 vsjson::Json response =
                 {
-                    {RpcField::TOKEN, token},
+                    {Protocol::jsonrpc, Protocol::version},
+                    {Protocol::id, id},
                 };
 
-                response[RpcField::RETURN] = netCall(name, std::move(args));
+                response[Protocol::result] = netCall(method, std::move(args));
 
                 std::string dump = response.dump();
                 uint32_t length = dump.length();
@@ -54,13 +55,13 @@ inline void RpcServer::start() {
 }
 
 template <typename F>
-inline void RpcServer::bind(const std::string &name, const F &func) {
-    _table[name] = CallProxy<F>(func);
+inline void RpcServer::bind(const std::string &method, const F &func) {
+    _table[method] = CallProxy<F>(func);
 }
 
-inline vsjson::Json RpcServer::netCall(const std::string &name, vsjson::Json args) {
+inline vsjson::Json RpcServer::netCall(const std::string &method, vsjson::Json args) {
     // assert args type == jsonArray
-    return _table[name](std::move(args));
+    return _table[method](std::move(args));
 }
 
 } // srpc

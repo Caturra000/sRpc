@@ -3,7 +3,7 @@
 #include "mutty.hpp"
 #include "vsjson.hpp"
 #include "Codec.h"
-#include "RpcField.h"
+#include "Protocol.h"
 namespace srpc {
 
 class RpcClient: private mutty::NonCopyable {
@@ -18,15 +18,15 @@ public:
 
 private:
     template <typename T>
-    void trySetValue(int token, std::shared_ptr<std::promise<T>> promise);
-    void trySetValue(int token, std::shared_ptr<std::promise<void>> promise);
+    void trySetValue(int id, std::shared_ptr<std::promise<T>> promise);
+    void trySetValue(int id, std::shared_ptr<std::promise<void>> promise);
 
     template <typename ...Args>
     void makeRequestImpl(vsjson::Json &json, Args &&...args) {}
     template <typename Arg, typename ...Args>
     void makeRequestImpl(vsjson::Json &json, Arg &&arg, Args &&...args);
     template <typename ...Args>
-    vsjson::Json makeRequest(const std::string &name, Args &&...args);
+    vsjson::Json makeRequest(const std::string &method, Args &&...args);
 
 private:
     mutty::AsyncLooperContainer _looperContainer;
@@ -42,8 +42,8 @@ inline std::future<T> RpcClient::call(const std::string &func, Args &&...args) {
     auto request = std::make_shared<vsjson::Json>(makeRequest(func, std::forward<Args>(args)...));
     auto promise = std::make_shared<std::promise<T>>();
     _client.async([this, request, promise] {
-        int token = ++_idGen;
-        (*request)[RpcField::TOKEN] = token;
+        int id = ++_idGen;
+        (*request)[Protocol::id] = id;
         std::string dump = request->dump();
         uint32_t length = dump.length();
         uint32_t beLength = htonl(length);
@@ -51,7 +51,7 @@ inline std::future<T> RpcClient::call(const std::string &func, Args &&...args) {
         _client.send(&beLength, sizeof(uint32_t));
         _client.send(dump.c_str(), length);
         _client.async([=] {
-            trySetValue(token, promise);
+            trySetValue(id, promise);
         });
     });
     return promise->get_future();
@@ -71,33 +71,33 @@ inline RpcClient::RpcClient(const mutty::InetAddress &serverAddress)
     _client.onMessage([this](mutty::TcpContext *ctx) {
         while(codec.verify(ctx->inputBuffer)) {
             vsjson::Json response = codec.decode(ctx->inputBuffer);
-            int token = response[RpcField::TOKEN].as<int>();
-            _records[token] = std::move(response[RpcField::RETURN]);
+            int id = response[Protocol::id].as<int>();
+            _records[id] = std::move(response[Protocol::result]);
         }
     });
 }
 
 template <typename T>
-inline void RpcClient::trySetValue(int token, std::shared_ptr<std::promise<T>> promise) {
-    auto iter = _records.find(token);
+inline void RpcClient::trySetValue(int id, std::shared_ptr<std::promise<T>> promise) {
+    auto iter = _records.find(id);
     if(iter != _records.end()) {
         promise->set_value(std::move(iter->second).to<T>());
         _records.erase(iter);
     } else {
         _client.async([=] {
-            trySetValue(token, promise);
+            trySetValue(id, promise);
         }); // retry
     }
 }
 
-inline void RpcClient::trySetValue(int token, std::shared_ptr<std::promise<void>> promise) {
-    auto iter = _records.find(token);
+inline void RpcClient::trySetValue(int id, std::shared_ptr<std::promise<void>> promise) {
+    auto iter = _records.find(id);
     if(iter != _records.end()) {
         promise->set_value();
         _records.erase(iter);
     } else {
         _client.async([=] {
-            trySetValue(token, promise);
+            trySetValue(id, promise);
         }); // retry
     }
 }
@@ -109,13 +109,14 @@ inline void RpcClient::makeRequestImpl(vsjson::Json &json, Arg &&arg, Args &&...
 }
 
 template <typename ...Args>
-inline vsjson::Json RpcClient::makeRequest(const std::string &name, Args &&...args) {
+inline vsjson::Json RpcClient::makeRequest(const std::string &method, Args &&...args) {
     vsjson::Json json =
     {
-        {RpcField::NAME, name},
-        {RpcField::ARGS, vsjson::Json::array()}
+        {Protocol::jsonrpc, Protocol::version},
+        {Protocol::method, method},
+        {Protocol::params, vsjson::Json::array()}
     };
-    vsjson::Json &argsJson = json[RpcField::ARGS];
+    vsjson::Json &argsJson = json[Protocol::params];
     makeRequestImpl(argsJson, std::forward<Args>(args)...);
     return json;
 }
