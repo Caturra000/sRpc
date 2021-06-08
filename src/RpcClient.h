@@ -10,6 +10,8 @@ class RpcClient: private mutty::NonCopyable {
 public:
     template <typename T, typename ...Args> // PODs
     std::future<T> call(const std::string &func, Args &&...args);
+    template <typename T, size_t N, typename ...Args>
+    std::future<T> call(const std::string &func, Args &&...args);
 
     std::future<bool> start();
     void join() { _client.stopLatch(); }
@@ -61,6 +63,12 @@ inline std::future<T> RpcClient::call(const std::string &func, Args &&...args) {
         });
     });
     return promise->get_future();
+}
+
+template <typename T, size_t N, typename ...Args>
+inline std::future<T> RpcClient::call(const std::string &func, Args &&...args) {
+    static_assert(N == sizeof...(Args), "invalid params");
+    return call<T>(func, std::forward<Args>(args)...);
 }
 
 inline std::future<bool> RpcClient::start() {
