@@ -13,10 +13,13 @@ public:
     template <typename T, size_t N, typename ...Args>
     std::future<T> call(const std::string &func, Args &&...args);
 
-    std::future<bool> start();
-    void join() { _client.stopLatch(); }
+    using SyncPolicy = mutty::Client::SyncPolicy;
+    void start(SyncPolicy policy = SyncPolicy::ASYNC) { _client.start(policy); }
+    void stop(SyncPolicy policy = SyncPolicy::ASYNC) { _client.stop(policy); }
+    void startLatch() { _client.startLatch(); }
+    void stopLatch() { _client.startLatch(); }
 
-    RpcClient(const mutty::InetAddress &serverAddress);
+    RpcClient(mutty::Looper *looper, const mutty::InetAddress &serverAddress);
 
 private:
     template <typename T>
@@ -36,13 +39,11 @@ private:
     bool returnException(int id, Iter iter, std::promise<T> &promise);
 
 private:
-    mutty::AsyncLooperContainer _looperContainer;
     mutty::Client _client;
     int _idGen;
     std::map<int, vsjson::Json> _records;
     std::map<int, bool> _exceptions;
     Codec codec;
-    std::promise<bool> _connectPromise;
 };
 
 template <typename T, typename ...Args> // PODs
@@ -71,17 +72,9 @@ inline std::future<T> RpcClient::call(const std::string &func, Args &&...args) {
     return call<T>(func, std::forward<Args>(args)...);
 }
 
-inline std::future<bool> RpcClient::start() {
-    _client.start();
-    return _connectPromise.get_future();
-}
-
-inline RpcClient::RpcClient(const mutty::InetAddress &serverAddress)
-    : _client(_looperContainer.get(), serverAddress),
+inline RpcClient::RpcClient(mutty::Looper *looper, const mutty::InetAddress &serverAddress)
+    : _client(looper, serverAddress),
         _idGen(mutty::random<int>() & 65535) {
-    _client.onConnect([this] {
-        _connectPromise.set_value(true);
-    });
     _client.onMessage([this](mutty::TcpContext *ctx) {
         while(codec.verify(ctx->inputBuffer)) {
             vsjson::Json response = codec.decode(ctx->inputBuffer);

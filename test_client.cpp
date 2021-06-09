@@ -8,9 +8,17 @@ using namespace vsjson;
 using namespace srpc;
 
 int main() {
-    RpcClient client(InetAddress("127.0.0.1", 23333));
-    auto connection = client.start();
-    connection.get();
+
+    Looper looper;
+    RpcClient client(&looper, {"127.0.0.1", 23333});
+    auto thread = looper.loopAsync();
+    client.start(Client::SyncPolicy::SYNC);
+    auto cleanup = [&] {
+        client.stop();
+        looper.stop();
+        thread.join();
+    };
+    Defer dtor {cleanup};
 
     // test invalid params
     std::future<int> addTest = client.call<int>("add", 1, 2, 3);
