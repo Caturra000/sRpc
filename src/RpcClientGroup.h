@@ -13,10 +13,42 @@ struct RpcClientGroupImpl {
     using Container = std::multimap<mutty::InetAddress, RpcClient, Comparator>;
 };
 
-class RpcClientGroup: public RpcClientGroupImpl::Container {
+class RpcClientGroup: protected RpcClientGroupImpl::Container {
 public:
     using Base = RpcClientGroupImpl::Container;
     // using Base::Base;
+
+    // iterators
+
+    using Base::begin;
+    using Base::end;
+    using Base::rbegin;
+    using Base::rend;
+    using Base::cbegin;
+    using Base::cend;
+    using Base::crbegin;
+    using Base::crend;
+
+    // capacity
+
+    using Base::empty;
+    using Base::size;
+    using Base::max_size;
+
+    // modifiers
+
+    using Base::clear;
+    // using Base::insert; // use emplace
+    using Base::erase;
+
+    // lookup
+
+    using Base::count;
+    using Base::find;
+    using Base::lower_bound;
+    using Base::upper_bound;
+
+    // wrapper
 
     RpcClientGroup(mutty::Looper *looper)
         : Base(/*std::forward<Args>(args)...*/),
