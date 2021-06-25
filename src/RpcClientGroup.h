@@ -19,7 +19,7 @@ public:
     // using Base::Base;
 
     // iterators
-
+    using iterator = Base::iterator;
     using Base::begin;
     using Base::end;
     using Base::rbegin;
@@ -38,7 +38,7 @@ public:
     // modifiers
 
     using Base::clear;
-    // using Base::insert; // use emplace
+    // using Base::insert; // unsafe, use emplace
     using Base::erase;
 
     // lookup
@@ -50,11 +50,13 @@ public:
 
     // wrapper
 
-    RpcClientGroup(mutty::Looper *looper)
-        : Base(/*std::forward<Args>(args)...*/),
-          _looper(looper) {}
+    auto emplace(const mutty::InetAddress &serverAddress) -> iterator;
+    template <typename ...Args>
+    auto emplace(Args &&...args) -> iterator;
 
-    Base::iterator emplace(const mutty::InetAddress &serverAddress);
+    RpcClientGroup(mutty::Looper *looper);
+    template <typename ...Forwards>
+    RpcClientGroup(mutty::Looper *looper, Forwards &&...fs);
 
 private:
     mutty::Looper *_looper;
@@ -72,11 +74,27 @@ inline bool RpcClientGroupImpl::Comparator
     return l.sin_port < r.sin_port;
 }
 
-inline RpcClientGroup::Base::iterator RpcClientGroup::emplace(const mutty::InetAddress &serverAddress) {
+inline auto RpcClientGroup::emplace(const mutty::InetAddress &serverAddress) -> RpcClientGroup::iterator {
     return Base::emplace(std::piecewise_construct,
                          std::forward_as_tuple(serverAddress),
                          std::forward_as_tuple(_looper, serverAddress));
 }
+
+template <typename ...Args>
+inline auto RpcClientGroup::emplace(Args &&...args) -> RpcClientGroup::iterator {
+    // not a real in-place construction, but make interface clean
+    return Base::emplace(std::piecewise_construct,
+                         std::forward_as_tuple(std::forward<Args>(args)...),
+                         std::forward_as_tuple(_looper, mutty::InetAddress(std::forward<Args>(args)...)));
+}
+
+inline RpcClientGroup::RpcClientGroup(mutty::Looper *looper)
+    : Base(), _looper(looper) {}
+
+template <typename ...Forwards>
+inline RpcClientGroup::RpcClientGroup(mutty::Looper *looper, Forwards &&...fs)
+    : Base(std::forward<Forwards>(fs)...),
+      _looper(looper) {}
 
 } // srpc
 #endif
