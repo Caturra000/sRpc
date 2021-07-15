@@ -7,7 +7,8 @@ a RPC framework based on C++14
 - 网络层基于我写的[mutty](https://github.com/Caturra000/mutty)
 - `JSON-RPC 2.0`兼容，JSON库也是基于我写的[vsjson](https://github.com/Caturra000/vsjson/)
 - 多线程、异步支持，基于`future-promise`模型
-- 不需要额外的idl，也不需要code generator，只有C++，开箱即用
+- 不需要额外的idl，也不需要code generator，只有C++
+- header only，开箱即用
 
 ## 快速使用
 
