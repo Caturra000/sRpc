@@ -88,6 +88,7 @@ int main() {
 4. 参数支持任意自定义类型，见`point.h`实现示例（但不建议使用数组和裸指针传入）
 5. 对于异常情况，见`test_client.cpp`使用`srpc::protocol::Exception`处理示例
 6. 直接使用`std::future::get`是会阻塞当前线程的（但不影响client），见[cppreference / std::future](https://en.cppreference.com/w/cpp/thread/future)了解更多API
+7. `dtor`将会在`main`结束时调用，非必要使用`mutty::Defer`，但个人推荐使用
 
 ## TODO
 
