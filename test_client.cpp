@@ -45,6 +45,13 @@ int main() {
             return "N/A";
         });
 
+    auto alwaysCancel = [] { return false; };
+    auto noReturnFuture = client.callIf<int>(alwaysCancel, "add", 1, 2)
+        .then([](srpc::Try<int> result) {
+            std::cout << "add2:" << result.value() << std::endl;
+            return nullptr;
+        });
+
     auto latch = fluent::whenAll(client.looper(), addFuture, appendFuture, pointAddFuture, errFut)
         .then([&client](std::tuple<nullptr_t, nullptr_t, int, const char*> &&all) {
             std::cout  << std::get<3>(all) << std::endl;

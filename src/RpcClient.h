@@ -16,6 +16,9 @@ public:
     fluent::Future<Try<T>> call(const std::string &func, Args &&...args);
     template <typename T, size_t N, typename ...Args>
     fluent::Future<Try<T>> call(const std::string &func, Args &&...args);
+    template <typename T, typename F, typename ...Args,
+        typename = std::enable_if_t<std::is_same<typename FunctionTraits<std::remove_reference_t<F>>::ReturnType, bool>::value>>
+    fluent::Future<Try<T>> callIf(F &&cond, const std::string &func, Args &&...args);
 
     void ready();
 
@@ -92,6 +95,38 @@ template <typename T, size_t N, typename ...Args>
 inline fluent::Future<Try<T>> RpcClient::call(const std::string &func, Args &&...args) {
     static_assert(N == sizeof...(Args), "invalid params");
     return call<T>(func, std::forward<Args>(args)...);
+}
+
+template <typename T, typename F, typename ...Args, typename>
+inline fluent::Future<Try<T>> RpcClient::callIf(F &&cond, const std::string &func, Args &&...args) {
+    auto request = makeRequest(func, std::forward<Args>(args)...);
+    return makeReadyFuture()
+        .then([request = std::move(request), this](nullptr_t) mutable {
+            int id = generateId();
+            sendRequest(id, request);
+            return std::make_tuple(id, vsjson::Json(), false);
+        })
+        .poll([this, cond = std::forward<F>(cond)] (std::tuple<int, vsjson::Json, bool> &&info) {
+            if(!cond()) {
+                // cancel flag
+                std::get<2>(info) = true;
+                return true;
+            }
+            int id = std::get<0>(info);
+            auto &response = std::get<1>(info);
+            if(verify(id, response) || cached(id, response)) {
+                return true;
+            }
+            return false;
+        })
+        .cancelIf([](std::tuple<int, vsjson::Json, bool> &info) {
+            bool flag = std::get<2>(info);
+            return flag;
+        })
+        .then([this](std::tuple<int, vsjson::Json, bool> &&info) {
+            auto &response = std::get<1>(info);
+            return makeResult<T>(response);
+        });
 }
 
 inline RpcClient::RpcClient(const fluent::InetAddress &address)
