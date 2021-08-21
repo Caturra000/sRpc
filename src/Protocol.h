@@ -61,7 +61,6 @@ private:
     int _code;
     std::string _message;
     const std::string _verbose{"srpc protocol exception: " + _message};
-    mutty::Object data; // unused?
 };
 
 constexpr char Field::jsonrpc[];

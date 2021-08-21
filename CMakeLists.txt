@@ -8,8 +8,9 @@ include(CPack)
 
 
 include_directories(INCLUDE_DIR ${INCLUDE_DIR} src)
-include_directories(INCLUDE_DIR ${INCLUDE_DIR} depends/mutty depends/mutty/src)
 include_directories(INCLUDE_DIR ${INCLUDE_DIR} depends/vsjson depends/vsjson/src)
+include_directories(INCLUDE_DIR ${INCLUDE_DIR} depends/fluent)
+
 
 add_executable(test_server test_server.cpp)
 add_executable(test_client test_client.cpp)

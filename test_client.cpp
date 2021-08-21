@@ -1,90 +1,58 @@
 #include <bits/stdc++.h>
-#include "mutty.hpp"
 #include "vsjson.hpp"
 #include "RpcClient.h"
-#include "RpcClientGroup.h"
 #include "Point.h"
-using namespace mutty;
-using namespace vsjson;
-using namespace srpc;
 
 int main() {
+    fluent::InetAddress address {"127.0.0.1", 2333};
+    srpc::RpcClient client {address};
 
-    // test client
-    { // scope guard
-
-    Looper looper;
-    RpcClient client(&looper, {"127.0.0.1", 23333});
-    auto thread = looper.loopAsync();
-    client.start(Client::SyncPolicy::SYNC);
-    auto cleanup = [&] {
-        client.stop();
-        looper.stop();
-        thread.join();
-    };
-    Defer dtor {cleanup};
-
-    // test invalid params
-    std::future<int> addTest = client.call<int>("add", 1, 2, 3);
-    try {
-        std::cout << addTest.get() << std::endl;
-    } catch(const protocol::Exception &e) {
-        std::cerr << "catch: " << e.what() << std::endl;
-    }
-
-    // test method not found
-    std::future<void> mock = client.call<void>("null", 1, 2, 3);
-    try {
-        mock.get();
-    } catch(const protocol::Exception &e) {
-        std::cerr << "catch: " << e.what() << std::endl;
-    }
+    auto addFuture = client.call<int>("add", 1, 2)
+        .then([](srpc::Try<int> result) {
+            std::cout << "add:" << result.value() << std::endl;
+            return nullptr;
+        });
 
     // test normal case
-    std::future<std::string> appendTest = client.call<std::string>("append", "foo", "bar");
+    auto appendFuture = client.call<std::string>("append", "foo", "bar")
+        .then([](srpc::Try<std::string> &&result) {
+            std::cout << "string append: " << result.value() << std::endl;
+            return nullptr;
+        });
 
     // test RAII and convert class
-    std::future<Point> pointAddTest = client.call<Point>("pointAdd", Point{1,2,3}, Point{4,5,6});
+    auto pointAddFuture = client.call<Point>("pointAdd", Point{1,2,3}, Point{4,5,6})
+        .then([](srpc::Try<Point> &result) {
+            auto value = result.value();
+            std::cout << "point:" << value.x << ' ' << value.y << ' ' << value.z << std::endl;
+            return value.x * value.y * value.z;
+        }).then([](int p2v) {
+            std::cout << "point to value: " << p2v << std::endl;
+            return p2v;
+        });
 
-    // test reverse async get() order
-    Point p = pointAddTest.get();
-    std::cout << p.x << " " << p.y << " " << p.z << std::endl;
-    std::cout << appendTest.get() << std::endl;
+    // invalid params or method not found...
+    auto errFut = client.call<int>("add", 123, 456, 789)
+        .then([](srpc::Try<int> &&jojo) {
+            std::cout << "test error" << std::endl;
+            if(jojo.isException()) {
+                try {
+                    std::rethrow_exception(jojo.exception());
+                } catch(const std::exception &e) {
+                    std::cerr << e.what() << std::endl;
+                }
+            }
+            return "N/A";
+        });
 
-    } // scope guard
+    auto latch = fluent::whenAll(client.looper(), addFuture, appendFuture, pointAddFuture, errFut)
+        .then([&client](std::tuple<nullptr_t, nullptr_t, int, const char*> &&all) {
+            std::cout  << std::get<3>(all) << std::endl;
+            client.stop();
+            return nullptr;
+        });
 
-
-    // test client group
-    { // scope guard
-
-    Looper looper;
-    RpcClientGroup group(&looper);
-    group.emplace("127.0.0.1", 23333);
-    group.emplace({"127.0.0.1", 23333});
-    auto forEach = [&group](std::function<void(RpcClient&)> func) {
-        for(auto &&node : group) {
-            auto &&client = node.second;
-            func(client);
-        }
-    };
-    auto thread = looper.loopAsync();
-    forEach([](RpcClient &client) {
-        client.start(Client::SyncPolicy::SYNC);
-    });
-    auto cleanup = [&] {
-        forEach([](RpcClient &client) { client.stop(); });
-        looper.stop();
-        thread.join();
-    };
-    mutty::Defer dtor {cleanup};
-    int counter = 233;
-    forEach([&counter](RpcClient &client) {
-        auto addTest = client.call<int>("add", counter, counter);
-        std::cout << addTest.get() << std::endl;
-        counter <<= 1;
-    });
-
-    } // scope guard
-
+    client.ready();
+    client.run();
     return 0;
 }

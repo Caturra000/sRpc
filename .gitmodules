@@ -4,3 +4,6 @@
 [submodule "depends/vsjson"]
 	path = depends/vsjson
 	url = https://github.com/Caturra000/vsJSON.git
+[submodule "depends/fluent"]
+	path = depends/fluent
+	url = https://github.com/Caturra000/FluentNet.git

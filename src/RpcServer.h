@@ -1,23 +1,31 @@
 #ifndef __SRPC_RPC_SERVER_H__
 #define __SRPC_RPC_SERVER_H__
 #include <bits/stdc++.h>
-#include "mutty.hpp"
+#include "fluent.hpp"
 #include "vsjson.hpp"
 #include "CallProxy.h"
 #include "Codec.h"
 #include "Protocol.h"
 namespace srpc {
 
-class RpcServer: private mutty::NonCopyable {
+class RpcServer {
 public:
-    void start();
+    void ready();
+    void run() { _server.run(); }
+    void batch() { _server.batch(); }
+    void stop() { _server.stop(); }
+    fluent::Looper* looper() { return _server.looper(); }
 
     template <typename F>
     void bind(const std::string &method, const F &func);
 
-    RpcServer(mutty::Looper *looper,
-              const mutty::InetAddress &serverAddress)
-        : _server(looper, serverAddress) {}
+    RpcServer(const fluent::InetAddress &address)
+        : _server(address) {}
+    ~RpcServer() = default;
+    RpcServer(const RpcServer&) = delete;
+    RpcServer(RpcServer&&) = default;
+    RpcServer& operator=(const RpcServer&) = delete;
+    RpcServer& operator=(RpcServer&&) = default;
 
 private:
     vsjson::Json netCall(const std::string &method, vsjson::Json args);
@@ -25,13 +33,13 @@ private:
 
 private:
     std::map<std::string, std::function<vsjson::Json(vsjson::Json)>> _table;
-    mutty::Server _server;
+    fluent::Server _server;
     Codec _codec;
 };
 
-inline void RpcServer::start() {
-    _server.onMessage([this](mutty::TcpContext *context) {
-        auto &buffer = context->inputBuffer;
+inline void RpcServer::ready() {
+    _server.onMessage([this](fluent::Context *context) {
+        auto &buffer = context->input;
         while(_codec.verify(buffer)) {
             auto request = _codec.decode(buffer);
             auto id = request[protocol::Field::id].to<int>();
@@ -60,7 +68,7 @@ inline void RpcServer::start() {
             context->send(dump.c_str(), length);
         }
     });
-    _server.start();
+    _server.ready();
 }
 
 template <typename F>
