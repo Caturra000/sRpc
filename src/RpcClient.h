@@ -4,6 +4,7 @@
 #include "vsjson.hpp"
 #include "Codec.h"
 #include "Protocol.h"
+#include "FunctionTraits.h"
 #include "Try.h"
 namespace srpc {
 
@@ -141,12 +142,13 @@ inline bool RpcClient::verify(int id, vsjson::Json &response) {
     auto &buf = _context->input;
     if(codec.verify(buf)) {
         auto data = codec.decode(buf);
-        if(data[protocol::Field::id].to<int>() == id) {
+        int rid = data[protocol::Field::id].to<int>();
+        if(rid == id) {
             response = std::move(data);
             return true;
         } else {
             // cached for another request
-            _records[id] = std::move(data);
+            _records[rid] = std::move(data);
             return false;
         }
     }
