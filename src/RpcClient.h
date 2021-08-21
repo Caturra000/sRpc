@@ -9,7 +9,9 @@ namespace srpc {
 
 class RpcClient {
 public:
-    template <typename T, typename ...Args> // PODs
+    // request -> response -> result
+    // Try<T>: a value or an exception
+    template <typename T, typename ...Args>
     fluent::Future<Try<T>> call(const std::string &func, Args &&...args);
     template <typename T, size_t N, typename ...Args>
     fluent::Future<Try<T>> call(const std::string &func, Args &&...args);
@@ -37,6 +39,14 @@ private:
     template <typename ...Args>
     vsjson::Json makeRequest(const std::string &method, Args &&...args);
 
+    fluent::Future<nullptr_t> makeReadyFuture();
+    int generateId() { return ++_idGen; }
+    void sendRequest(int id, vsjson::Json &request);
+    bool verify(int id, vsjson::Json &result);
+    bool cached(int id, vsjson::Json &result);
+    template <typename T>
+    Try<T> makeResult(vsjson::Json &result);
+
 private:
     fluent::Client _client;
     fluent::InetAddress _address; // server
@@ -54,58 +64,26 @@ inline void RpcClient::ready() {
         });
 }
 
-template <typename T, typename ...Args> // PODs
+template <typename T, typename ...Args>
 inline fluent::Future<Try<T>> RpcClient::call(const std::string &func, Args &&...args) {
-    auto requestPtr = std::make_shared<vsjson::Json>(makeRequest(func, std::forward<Args>(args)...));
-    return fluent::makeFuture(_client.looper(), nullptr)
-        .poll([this](nullptr_t) {
-            return _context != nullptr;
-        })
-        .then([request = std::move(requestPtr), this](nullptr_t) {
-            auto context = _context;
-            int id = ++_idGen;
-            (*request)[protocol::Field::id] = id;
-            std::string dump = request->dump();
-            uint32_t length = dump.length();
-            uint32_t beLength = htonl(length);
-            context->send(&beLength, sizeof(uint32_t));
-            context->send(dump.c_str(), length);
+    auto request = makeRequest(func, std::forward<Args>(args)...);
+    return makeReadyFuture()
+        .then([request = std::move(request), this](nullptr_t) mutable {
+            int id = generateId();
+            sendRequest(id, request);
             return std::make_tuple(id, vsjson::Json());
         })
         .poll([this](std::tuple<int, vsjson::Json> &&info) {
-            auto context = _context;
-            auto &buf = context->input;
             int id = std::get<0>(info);
-            auto &result = std::get<1>(info);
-            if(codec.verify(buf)) {
-                auto response = codec.decode(buf);
-                if(response[protocol::Field::id].to<int>() != id) {
-                    _records[id] = std::move(response);
-                } else {
-                    result = std::move(response);
-                    return true;
-                }
-            }
-            auto iter = _records.find(id);
-            if(iter != _records.end()) {
-                result = std::move(iter->second);
-                _records.erase(iter);
+            auto &response = std::get<1>(info);
+            if(verify(id, response) || cached(id, response)) {
                 return true;
             }
             return false;
         })
         .then([this](std::tuple<int, vsjson::Json> &&info) {
             auto &response = std::get<1>(info);
-            if(!response.contains(protocol::Field::error)) {
-                return Try<T>(std::move(response[protocol::Field::result].to<T>()));
-            }
-            auto errObj = std::move(response[protocol::Field::error]);
-            return errObj.contains(protocol::Field::message) ?
-                Try<T>(std::make_exception_ptr(protocol::Exception(
-                    errObj[protocol::Field::code].to<int>(),
-                    errObj[protocol::Field::message].to<std::string>())))
-              : Try<T>(std::make_exception_ptr(protocol::Exception(
-                    errObj[protocol::Field::code].to<int>())));
+            return makeResult<T>(response);
         });
 }
 
@@ -138,6 +116,65 @@ inline vsjson::Json RpcClient::makeRequest(const std::string &method, Args &&...
     vsjson::Json &argsJson = json[protocol::Field::params];
     makeRequestImpl(argsJson, std::forward<Args>(args)...);
     return json;
+}
+
+inline fluent::Future<nullptr_t> RpcClient::makeReadyFuture() {
+    if(_context != nullptr) {
+        return fluent::makeFuture(_client.looper(), nullptr);
+    }
+    return fluent::makeFuture(_client.looper(), nullptr)
+        .poll([this](nullptr_t) {
+            return _context != nullptr;
+        });
+}
+
+inline void RpcClient::sendRequest(int id, vsjson::Json &request) {
+    request[protocol::Field::id] = id;
+    std::string dump = request.dump();
+    uint32_t length = dump.length();
+    uint32_t beLength = htonl(length);
+    _context->send(&beLength, sizeof(uint32_t));
+    _context->send(dump.c_str(), length);
+}
+
+inline bool RpcClient::verify(int id, vsjson::Json &response) {
+    auto &buf = _context->input;
+    if(codec.verify(buf)) {
+        auto data = codec.decode(buf);
+        if(data[protocol::Field::id].to<int>() == id) {
+            response = std::move(data);
+            return true;
+        } else {
+            // cached for another request
+            _records[id] = std::move(data);
+            return false;
+        }
+    }
+    return false;
+}
+
+inline bool RpcClient::cached(int id, vsjson::Json &response) {
+    auto iter = _records.find(id);
+    if(iter != _records.end()) {
+        response = std::move(iter->second);
+        _records.erase(iter);
+        return true;
+    }
+    return false;
+}
+
+template <typename T>
+inline Try<T> RpcClient::makeResult(vsjson::Json &response) {
+    if(!response.contains(protocol::Field::error)) {
+        return Try<T>(std::move(response[protocol::Field::result].to<T>()));
+    }
+    auto errObj = std::move(response[protocol::Field::error]);
+    return errObj.contains(protocol::Field::message) ?
+        Try<T>(std::make_exception_ptr(protocol::Exception(
+            errObj[protocol::Field::code].to<int>(),
+            errObj[protocol::Field::message].to<std::string>())))
+      : Try<T>(std::make_exception_ptr(protocol::Exception(
+            errObj[protocol::Field::code].to<int>())));
 }
 
 } // srpc
