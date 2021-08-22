@@ -47,6 +47,8 @@ public:
     fluent::Looper* looper() { return _client.looper(); }
 
     RpcClient(const fluent::InetAddress &address);
+    RpcClient(const fluent::InetAddress &address,
+              std::shared_ptr<fluent::Multiplexer> multiplexer);
     ~RpcClient() = default;
     RpcClient(const RpcClient&) = delete;
     RpcClient(RpcClient&&) = default;
@@ -166,6 +168,13 @@ inline fluent::Future<Try<T>> RpcClient::callWith(Interceptor &&interceptor, Lis
 
 inline RpcClient::RpcClient(const fluent::InetAddress &address)
     : _client(),
+      _address(address),
+      _idGen(::random() & 65535),
+      _context(nullptr) {}
+
+inline RpcClient::RpcClient(const fluent::InetAddress &address,
+                            std::shared_ptr<fluent::Multiplexer> multiplexer)
+    : _client(std::move(multiplexer)),
       _address(address),
       _idGen(::random() & 65535),
       _context(nullptr) {}
