@@ -3,6 +3,8 @@
 #include "RpcClient.h"
 #include "Point.h"
 
+nullptr_t fpp(int v) { return nullptr; }
+
 int main() {
     fluent::InetAddress address {"127.0.0.1", 2333};
     srpc::RpcClient client {address};
@@ -46,9 +48,27 @@ int main() {
         });
 
     auto alwaysCancel = [] { return false; };
-    auto noReturnFuture = client.callIf<int>(alwaysCancel, "add", 1, 2)
+    auto noReturnFuture = client.callWithListener<int>(alwaysCancel, "add", 1, 2)
         .then([](srpc::Try<int> result) {
             std::cout << "add2:" << result.value() << std::endl;
+            return nullptr;
+        });
+
+    auto interceptor = [](vsjson::Json &json) {
+        std::cout << "interceptor: " << json << std::endl;
+        return true;
+    };
+
+    auto noReturnFuture2 = client.callWith<int>(interceptor, alwaysCancel, "add", 1, 2)
+        .then([](srpc::Try<int> result) {
+            std::cout << "add2:" << result.value() << std::endl;
+            return nullptr;
+        });
+
+    auto interceptFuture = client.callWithInterceptor<int>(interceptor, "add", 7, 8)
+        // may print before latch stop this client
+        .then([](srpc::Try<int> result) {
+            std::cout << "add3:" << result.value() << std::endl;
             return nullptr;
         });
 

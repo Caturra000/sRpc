@@ -16,9 +16,27 @@ public:
     fluent::Future<Try<T>> call(const std::string &func, Args &&...args);
     template <typename T, size_t N, typename ...Args>
     fluent::Future<Try<T>> call(const std::string &func, Args &&...args);
-    template <typename T, typename F, typename ...Args,
-        typename = std::enable_if_t<std::is_same<typename FunctionTraits<std::remove_reference_t<F>>::ReturnType, bool>::value>>
-    fluent::Future<Try<T>> callIf(F &&cond, const std::string &func, Args &&...args);
+
+    template <typename T, typename Listener, typename ...Args,
+        typename RL = typename std::remove_reference<Listener>::type,
+        typename LShouldReturnBool = std::enable_if_t<std::is_same<typename FunctionTraits<RL>::ReturnType, bool>::value>,
+        typename LNoAnyArgument = std::enable_if_t<std::is_same<typename FunctionTraits<RL>::ArgsTuple, std::tuple<>>::value>>
+    fluent::Future<Try<T>> callWithListener(Listener &&listener, const std::string &func, Args &&...args);
+
+    template <typename T, typename Interceptor, typename ...Args,
+        typename RI = typename std::remove_reference<Interceptor>::type,
+        typename IShouldReturnBool = std::enable_if_t<std::is_same<typename FunctionTraits<RI>::ReturnType, bool>::value>,
+        typename IAcceptJsonReference = std::enable_if_t<std::is_same<typename FunctionTraits<RI>::ArgsTuple, std::tuple<vsjson::Json&>>::value>>
+    fluent::Future<Try<T>> callWithInterceptor(Interceptor &&interceptor, const std::string &func, Args &&...args);
+
+    template <typename T, typename Interceptor, typename Listener, typename ...Args,
+        typename RI = typename std::remove_reference<Interceptor>::type,
+        typename RL = typename std::remove_reference<Listener>::type,
+        typename IShouldReturnBool = std::enable_if_t<std::is_same<typename FunctionTraits<RI>::ReturnType, bool>::value>,
+        typename IAcceptJsonReference = std::enable_if_t<std::is_same<typename FunctionTraits<RI>::ArgsTuple, std::tuple<vsjson::Json&>>::value>,
+        typename LShouldReturnBool = std::enable_if_t<std::is_same<typename FunctionTraits<RL>::ReturnType, bool>::value>,
+        typename LNoAnyArgument = std::enable_if_t<std::is_same<typename FunctionTraits<RL>::ArgsTuple, std::tuple<>>::value>>
+    fluent::Future<Try<T>> callWith(Interceptor &&interceptor, Listener &&listener, const std::string &func, Args &&...args);
 
     void ready();
 
@@ -97,17 +115,34 @@ inline fluent::Future<Try<T>> RpcClient::call(const std::string &func, Args &&..
     return call<T>(func, std::forward<Args>(args)...);
 }
 
-template <typename T, typename F, typename ...Args, typename>
-inline fluent::Future<Try<T>> RpcClient::callIf(F &&cond, const std::string &func, Args &&...args) {
+template <typename T, typename Listener, typename ...Args, typename, typename, typename>
+inline fluent::Future<Try<T>> RpcClient::callWithListener(Listener &&listener, const std::string &func, Args &&...args) {
+    return callWith<T>([](vsjson::Json&) {return true;}, std::forward<Listener>(listener), func, std::forward<Args>(args)...);
+}
+
+template <typename T, typename Interceptor, typename ...Args, typename, typename, typename>
+inline fluent::Future<Try<T>> RpcClient::callWithInterceptor(Interceptor &&interceptor, const std::string &func, Args &&...args) {
+    return callWith<T>(std::forward<Interceptor>(interceptor), [] {return true;}, func, std::forward<Args>(args)...);
+}
+
+template <typename T, typename Interceptor, typename Listener, typename ...Args, typename, typename, typename, typename, typename, typename>
+inline fluent::Future<Try<T>> RpcClient::callWith(Interceptor &&interceptor, Listener &&listener, const std::string &func, Args &&...args) {
     auto request = makeRequest(func, std::forward<Args>(args)...);
     return makeReadyFuture()
-        .then([request = std::move(request), this](nullptr_t) mutable {
+        .then([this, request = std::move(request), interceptor = std::forward<Interceptor>(interceptor)](nullptr_t) mutable {
+            if(!interceptor(request)) {
+                return std::make_tuple(/*unused*/19260817, vsjson::Json(), /*cancel!*/true);
+            }
             int id = generateId();
             sendRequest(id, request);
             return std::make_tuple(id, vsjson::Json(), false);
         })
-        .poll([this, cond = std::forward<F>(cond)] (std::tuple<int, vsjson::Json, bool> &&info) {
-            if(!cond()) {
+        .cancelIf([](std::tuple<int, vsjson::Json, bool> &&info) {
+            bool flag = std::get<2>(info);
+            return flag;
+        })
+        .poll([this, ctx = std::forward<Listener>(listener)](std::tuple<int, vsjson::Json, bool> &&info) {
+            if(!ctx()) {
                 // cancel flag
                 std::get<2>(info) = true;
                 return true;
