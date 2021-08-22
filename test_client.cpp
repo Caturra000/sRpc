@@ -55,7 +55,7 @@ int main() {
         });
 
     auto interceptor = [](vsjson::Json &json) {
-        std::cout << "interceptor: " << json << std::endl;
+        json[srpc::protocol::Field::params][1] = 100;
         return true;
     };
 
