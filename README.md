@@ -1,10 +1,16 @@
 # sRPC
 
+## 注意
+
+这个RPC库搁置长达2年了，历史使命已完成，目前已经被[tRPC](https://github.com/Caturra000/tRPC)所替代
+
+并且下面的README已过期，后续也基本不会更新
+
 ## TL;DR
 
 a RPC framework based on C++14
 
-- 网络层基于我写的[mutty](https://github.com/Caturra000/mutty)
+- 网络层基于我写的[mutty](https://github.com/Caturra000/mutty)和[fluent](https://github.com/Caturra000/FluentNet/)
 - `JSON-RPC 2.0`兼容，JSON库也是基于我写的[vsjson](https://github.com/Caturra000/vsjson/)
 - 多线程、异步支持，基于`future-promise`模型
 - 不需要额外的idl，也不需要code generator，只有C++
